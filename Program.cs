@@ -37,11 +37,19 @@ namespace SpaceShooterMultiplayer
     {
         private Socket socket;
         private Thread receiveThread;
-        private bool isHost;
+        public bool isHost { get; private set; }
         public bool IsConnected { get; private set; }
         public string Status { get; private set; } = "Disconnected";
         public List<GameObject> GameObjects { get; } = new List<GameObject>();
         private readonly object lockObject = new object();
+
+        public List<GameObject> GetSafeGameObjects()
+        {
+            lock (lockObject)
+            {
+                return new List<GameObject>(GameObjects);
+            }
+        }
 
         public void HostGame()
         {
@@ -116,8 +124,6 @@ namespace SpaceShooterMultiplayer
             lock (lockObject)
             {
                 string[] objects = data.Split(';');
-                GameObjects.Clear();
-
                 foreach (string obj in objects)
                 {
                     if (string.IsNullOrEmpty(obj)) continue;
@@ -131,31 +137,33 @@ namespace SpaceShooterMultiplayer
                         float rotation = float.Parse(parts[4]);
                         int health = int.Parse(parts[5]);
                         bool thrusting = bool.Parse(parts[6]);
-                        bool isLocal = (id == 0 && !isHost) || (id == 1 && isHost);
 
-                        GameObjects.Add(new Player(
-                            new Vector2(x, y),
-                            rotation,
-                            health,
-                            thrusting,
-                            isLocal ? Color.Green : Color.Blue,
-                            id
-                        ));
-                    }
-                    else if (parts[0] == "bullet")
-                    {
-                        float x = float.Parse(parts[1]);
-                        float y = float.Parse(parts[2]);
-                        float vx = float.Parse(parts[3]);
-                        float vy = float.Parse(parts[4]);
-                        int ownerId = int.Parse(parts[5]);
+                        // Find existing player or create new
+                        Player existing = GameObjects.Find(g => g is Player p && p.Id == id) as Player;
 
-                        GameObjects.Add(new Bullet(
-                            new Vector2(x, y),
-                            new Vector2(vx, vy),
-                            ownerId == 0 ? Color.Yellow : Color.Orange,
-                            ownerId
-                        ));
+                        if (existing != null)
+                        {
+                            // Update existing player
+                            existing.Position = new Vector2(x, y);
+                            existing.Rotation = rotation;
+                            existing.Health = health;
+                            //TODO existing.IsThrusting = thrusting;
+                        }
+                        else
+                        {
+                            // Add new player
+                            bool isLocal = (id == 0 && !isHost) || (id == 1 && isHost);
+                            Color color = isLocal ? Color.Green : (id == 0 ? Color.Green : Color.Blue);
+
+                            GameObjects.Add(new Player(
+                                new Vector2(x, y),
+                                rotation,
+                                health,
+                                thrusting,
+                                color,
+                                id
+                            ));
+                        }
                     }
                 }
             }
@@ -292,6 +300,13 @@ namespace SpaceShooterMultiplayer
             {
                 state = GameState.Menu;
             }
+
+            //TODO
+            if (network.isHost && network.IsConnected)
+            {
+                // Host sends its own data to client
+                network.SendData($"player:{localPlayer.Id}:{localPlayer.Position.X}:{localPlayer.Position.Y}:{localPlayer.Rotation}:{localPlayer.Health}:{localPlayer.IsThrusting}");
+            }
         }
 
         public void Draw()
@@ -334,12 +349,11 @@ namespace SpaceShooterMultiplayer
         private void DrawGame()
         {
             // Draw remote objects
-            //lock (network.lockObject)
+            List<GameObject> gameObjects = network.GetSafeGameObjects();
+
+            foreach (GameObject obj in gameObjects)
             {
-                foreach (GameObject obj in network.GameObjects)
-                {
-                    obj.Draw();
-                }
+                obj.Draw();
             }
 
             // Draw local player
