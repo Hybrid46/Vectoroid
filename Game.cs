@@ -148,6 +148,7 @@ namespace SpaceShooterMultiplayer
                 var pos = localPlayer.Position + dir * 30f;
                 var vel = dir * 12f;
 
+                // Create the payload
                 var bulletPayload = new
                 {
                     type = "Bullet",
@@ -160,7 +161,12 @@ namespace SpaceShooterMultiplayer
                         VY = vel.Y
                     }
                 };
+
+                // Send to the network
                 net.Send(bulletPayload);
+
+                // Add the bullet locally
+                net.Bullets.Add(new Bullet(pos, vel, localPlayer.Color, localPlayer.Id));
 
                 bulletCooldown = 20;
             }
