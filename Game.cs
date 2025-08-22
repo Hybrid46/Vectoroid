@@ -99,7 +99,7 @@ namespace SpaceShooterMultiplayer
             {
                 net.Join(ip[0]);   // blocking until connected
                 int localId = net.LocalPlayerId;
-                localPlayer = new Player(new Vector2(800, 350), 180f, 100, false, Color.Blue, localId);
+                localPlayer = new Player(new Vector2(800, 350), 180f, 100, false, Color.Green, localId);
                 state = State.Playing;
             }
         }
