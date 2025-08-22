@@ -62,25 +62,58 @@ namespace SpaceShooterMultiplayer
         {
             float rad = MathF.PI * Rotation / 180f;
 
-            var nose = Position + new Vector2(MathF.Sin(rad), -MathF.Cos(rad)) * 30f;
-            var left = Position + new Vector2(MathF.Sin(rad + MathF.PI * 5f / 6f),
-                                              -MathF.Cos(rad + MathF.PI * 5f / 6f)) * 20f;
-            var right = Position + new Vector2(MathF.Sin(rad - MathF.PI * 5f / 6f),
-                                               -MathF.Cos(rad - MathF.PI * 5f / 6f)) * 20f;
+            // Calculate forward vector (unit vector) - already in Raylib's coordinate system
+            Vector2 forward = new Vector2(MathF.Sin(rad), -MathF.Cos(rad));
 
-            Raylib.DrawTriangle(nose, left, right, Color);
+            // Calculate nose (30 units in forward direction)
+            Vector2 nose = forward * 30f;
 
+            // Calculate left (20 units at 150 degrees from forward)
+            Vector2 left = new Vector2(
+                forward.X * MathF.Cos(5f * MathF.PI / 6f) - forward.Y * MathF.Sin(5f * MathF.PI / 6f),
+                forward.X * MathF.Sin(5f * MathF.PI / 6f) + forward.Y * MathF.Cos(5f * MathF.PI / 6f)
+            ) * 20f;
+
+            // Calculate right (20 units at -150 degrees from forward)
+            Vector2 right = new Vector2(
+                forward.X * MathF.Cos(-5f * MathF.PI / 6f) - forward.Y * MathF.Sin(-5f * MathF.PI / 6f),
+                forward.X * MathF.Sin(-5f * MathF.PI / 6f) + forward.Y * MathF.Cos(-5f * MathF.PI / 6f)
+            ) * 20f;
+
+            // Convert to absolute coordinates by adding player position
+            Vector2 nosePoint = Position + nose;
+            Vector2 leftPoint = Position + left;
+            Vector2 rightPoint = Position + right;
+
+            // Draw triangle in counter-clockwise order (nose -> right -> left)
+            Raylib.DrawTriangle(nosePoint, rightPoint, leftPoint, Color);
+
+            // Thrust effects (flame)
             if (IsThrusting)
             {
-                var tail = Position + new Vector2(MathF.Sin(rad + MathF.PI), -MathF.Cos(rad + MathF.PI)) * 20f;
-                var flameL = Position + new Vector2(MathF.Sin(rad + MathF.PI + MathF.PI / 6f),
-                                                    -MathF.Cos(rad + MathF.PI + MathF.PI / 6f)) * 15f;
-                var flameR = Position + new Vector2(MathF.Sin(rad + MathF.PI - MathF.PI / 6f),
-                                                    -MathF.Cos(rad + MathF.PI - MathF.PI / 6f)) * 15f;
-                Raylib.DrawTriangle(tail, flameL, flameR, Color.Orange);
-            }
+                Vector2 backward = -forward; // backward direction
 
-            Raylib.DrawText($"Player {Id + 1}", (int)Position.X - 30, (int)Position.Y - 50, 18, Color);
+                float angle = MathF.PI / 6f; // 30 degrees
+
+                // Left flame: rotate backward by +30 degrees (counterclockwise)
+                Vector2 flameL = new Vector2(
+                    backward.X * MathF.Cos(angle) - backward.Y * MathF.Sin(angle),
+                    backward.X * MathF.Sin(angle) + backward.Y * MathF.Cos(angle)
+                ) * 15f;
+
+                // Right flame: rotate backward by -30 degrees (clockwise)
+                Vector2 flameR = new Vector2(
+                    backward.X * MathF.Cos(angle) + backward.Y * MathF.Sin(angle),
+                    -backward.X * MathF.Sin(angle) + backward.Y * MathF.Cos(angle)
+                ) * 15f;
+
+                Vector2 tailPoint = Position + backward * 20f;
+                Vector2 flameLPoint = Position + flameL;
+                Vector2 flameRPoint = Position + flameR;
+
+                // Draw the flame triangle: tail, right, left (to match the main ship's winding order)
+                Raylib.DrawTriangle(tailPoint, flameRPoint, flameLPoint, Color.Orange);
+            }
         }
     }
 
