@@ -11,14 +11,16 @@ namespace SpaceShooterMultiplayer
 {
     public class NetworkManager
     {
-        private TcpClient client;
-        private TcpListener listener;
-        private NetworkStream stream;
+        private TcpClient client;            // used only by a connecting client
+        private TcpListener listener;        // only used by the host
+        private NetworkStream stream;        // stream for a connecting client
 
         // ---------- Public state ----------
         public bool IsHost { get; private set; }
-        public bool IsConnected => stream != null && stream.CanRead && stream.CanWrite;
+        public bool IsConnected => IsHost || (stream != null && stream.CanRead && stream.CanWrite);
         public string Status { get; private set; } = "Disconnected";
+
+        public int LocalPlayerId { get; private set; } = -1; // 0 for host, otherwise unique hash
 
         // ---------- Shared data ----------
         private readonly Dictionary<int, Player> players = new Dictionary<int, Player>();
@@ -27,20 +29,25 @@ namespace SpaceShooterMultiplayer
         public IReadOnlyDictionary<int, Player> Players => players;
         public List<Bullet> Bullets => bullets;
 
-        // ---------- Networking ----------
+        // ---------- Client connections (for host) ----------
+        private readonly List<TcpClient> clientConnections = new List<TcpClient>();
+        private readonly Dictionary<TcpClient, string> clientBuffers = new Dictionary<TcpClient, string>();
+
+        // ---------- Local buffer for a connected client ----------
+        private string clientBuffer = "";
+
+        /* ------------------------------------------------------------------ */
+        /*                               HOST                                 */
+        /* ------------------------------------------------------------------ */
         public void Host()
         {
             try
             {
                 listener = new TcpListener(IPAddress.Any, 12345);
-                listener.Start(1);
-                Status = "Waiting for a player...";
-                Console.WriteLine("Hosting game...Waiting for a player...");
+                listener.Start(1);                // allow one pending connection
+                Status = "Hosting…";
                 IsHost = true;
-
-                client = listener.AcceptTcpClient(); // blocking
-                stream = client.GetStream();
-                Status = "Player connected!";
+                LocalPlayerId = 0;                // host id
             }
             catch (Exception ex)
             {
@@ -48,15 +55,18 @@ namespace SpaceShooterMultiplayer
             }
         }
 
+        /* ------------------------------------------------------------------ */
+        /*                               JOIN                                 */
+        /* ------------------------------------------------------------------ */
         public void Join(string ip)
         {
             try
             {
                 client = new TcpClient();
-                client.Connect(IPAddress.Parse(ip), 12345); // blocking
+                client.Connect(IPAddress.Parse(ip), 12345); // blocking until success
                 stream = client.GetStream();
                 Status = "Connected to host!";
-                IsHost = false;
+                LocalPlayerId = client.Client.RemoteEndPoint.GetHashCode();
             }
             catch (Exception ex)
             {
@@ -70,20 +80,31 @@ namespace SpaceShooterMultiplayer
             {
                 stream?.Close();
                 client?.Close();
+                foreach (var c in clientConnections) c?.Close();
                 listener?.Stop();
                 Status = "Disconnected";
             }
             catch { }
         }
 
+        /* ------------------------------------------------------------------ */
+        /*                               SEND                                 */
+        /* ------------------------------------------------------------------ */
         public void Send(object payload)
         {
-            if (!IsConnected) return;
+            if (!IsConnected && !IsHost) return;
             try
             {
                 string json = JsonSerializer.Serialize(payload);
-                byte[] data = Encoding.UTF8.GetBytes(json + "\n");
-                stream.Write(data, 0, data.Length);
+                if (IsHost)
+                {
+                    Broadcast(json + "\n");
+                }
+                else
+                {
+                    byte[] data = Encoding.UTF8.GetBytes(json + "\n");
+                    stream.Write(data, 0, data.Length);
+                }
             }
             catch
             {
@@ -91,37 +112,98 @@ namespace SpaceShooterMultiplayer
             }
         }
 
-        // ---------- Non‑blocking receive ----------
-        private string _inBuffer = "";
-
+        /* ------------------------------------------------------------------ */
+        /*                              POLL                                  */
+        /* ------------------------------------------------------------------ */
         public void Poll()
         {
-            if (!IsConnected) return;
+            if (!IsConnected && !IsHost) return;
 
-            while (stream.DataAvailable)
+            // ---- Host: accept new connections --------------------------------
+            if (IsHost)
             {
-                byte[] buffer = new byte[4096];
-                int read = stream.Read(buffer, 0, buffer.Length);
-                if (read == 0)   // remote closed
+                while (listener.Pending())
                 {
-                    Disconnect();
-                    return;
+                    TcpClient newClient = listener.AcceptTcpClient();
+                    clientConnections.Add(newClient);
+                    clientBuffers[newClient] = "";
+                    // Create a placeholder player for the new connection
+                    int clientId = newClient.Client.RemoteEndPoint.GetHashCode();
+                    if (!players.ContainsKey(clientId))
+                        players[clientId] = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, clientId);
                 }
-                _inBuffer += Encoding.UTF8.GetString(buffer, 0, read);
+            }
 
-                // split on '\n'
-                int idx;
-                while ((idx = _inBuffer.IndexOf('\n')) != -1)
+            // ---- Read from all streams --------------------------------------
+            if (IsHost)
+            {
+                // read from each connected client
+                for (int i = clientConnections.Count - 1; i >= 0; i--)
                 {
-                    string line = _inBuffer.Substring(0, idx);
-                    if (!string.IsNullOrWhiteSpace(line))
-                        ProcessMessage(line.Trim());
-                    _inBuffer = _inBuffer.Substring(idx + 1);
+                    TcpClient c = clientConnections[i];
+                    NetworkStream ns = c.GetStream();
+                    if (!ns.DataAvailable) continue;
+
+                    byte[] buffer = new byte[4096];
+                    int read = ns.Read(buffer, 0, buffer.Length);
+                    if (read == 0)
+                    {
+                        // client closed
+                        c.Close();
+                        clientConnections.RemoveAt(i);
+                        clientBuffers.Remove(c);
+                        continue;
+                    }
+
+                    string chunk = Encoding.UTF8.GetString(buffer, 0, read);
+                    clientBuffers[c] += chunk;
+
+                    ProcessBuffer(c, clientBuffers[c], true);
+                }
+            }
+            else
+            {
+                // client side – single stream
+                if (stream.DataAvailable)
+                {
+                    byte[] buffer = new byte[4096];
+                    int read = stream.Read(buffer, 0, buffer.Length);
+                    if (read == 0)
+                    {
+                        Disconnect();
+                        return;
+                    }
+                    string chunk = Encoding.UTF8.GetString(buffer, 0, read);
+                    clientBuffer += chunk;
+                    ProcessBuffer(null, clientBuffer, false);
                 }
             }
         }
 
-        private void ProcessMessage(string json)
+        /* ------------------------------------------------------------------ */
+        /*                          PROCESS BUFFER                           */
+        /* ------------------------------------------------------------------ */
+        private void ProcessBuffer(TcpClient? sender, string buffer, bool isHost)
+        {
+            int idx;
+            while ((idx = buffer.IndexOf('\n')) != -1)
+            {
+                string line = buffer.Substring(0, idx).Trim();
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    ProcessMessage(line, sender);
+                }
+                buffer = buffer.Substring(idx + 1);
+            }
+
+            if (sender != null) clientBuffers[sender] = buffer;
+            else clientBuffer = buffer;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /*                           MESSAGE PROCESSING                       */
+        /* ------------------------------------------------------------------ */
+        private void ProcessMessage(string json, TcpClient? sender)
         {
             try
             {
@@ -151,14 +233,46 @@ namespace SpaceShooterMultiplayer
                         Color.Red,
                         b.OwnerId));
                 }
+
+                // Forward the message to all other participants (if we are the host)
+                if (IsHost && sender != null)
+                {
+                    Broadcast(json + "\n", sender);
+                }
             }
             catch
             {
-                // ignore malformed packet
+                // ignore malformed packets
             }
         }
 
-        // ---------- DTOs ----------
+        /* ------------------------------------------------------------------ */
+        /*                                 BROADCAST                           */
+        /* ------------------------------------------------------------------ */
+        private void Broadcast(string data, TcpClient? except = null)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(data);
+            for (int i = clientConnections.Count - 1; i >= 0; i--)
+            {
+                TcpClient c = clientConnections[i];
+                if (except != null && c == except) continue;
+                try
+                {
+                    NetworkStream ns = c.GetStream();
+                    ns.Write(bytes, 0, bytes.Length);
+                }
+                catch
+                {
+                    c.Close();
+                    clientConnections.RemoveAt(i);
+                    clientBuffers.Remove(c);
+                }
+            }
+        }
+
+        /* ------------------------------------------------------------------ */
+        /*                                 DTOs                                 */
+        /* ------------------------------------------------------------------ */
         private record PlayerStateDto
         {
             public int Id { get; init; }

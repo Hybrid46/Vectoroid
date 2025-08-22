@@ -55,9 +55,9 @@ namespace SpaceShooterMultiplayer
             Raylib.EndDrawing();
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                           MENU STATE                               */
-        /* ------------------------------------------------------------------ */
+        /* --------------------------------------------------------------------- */
+        /*                            MENU STATE                                 */
+        /* --------------------------------------------------------------------- */
         private bool textBoxActive = false;
 
         private void UpdateMenu()
@@ -91,14 +91,15 @@ namespace SpaceShooterMultiplayer
 
             if (hostClicked)
             {
-                net.Host();   // blocking – only called once
+                net.Host();   // non‑blocking
                 localPlayer = new Player(new Vector2(200, 350), 0f, 100, false, Color.Green, 0);
                 state = State.Playing;
             }
             else if (joinClicked)
             {
-                net.Join(ip[0]);   // blocking – only called once
-                localPlayer = new Player(new Vector2(800, 350), 180f, 100, false, Color.Blue, 1);
+                net.Join(ip[0]);   // blocking until connected
+                int localId = net.LocalPlayerId;
+                localPlayer = new Player(new Vector2(800, 350), 180f, 100, false, Color.Blue, localId);
                 state = State.Playing;
             }
         }
@@ -111,7 +112,6 @@ namespace SpaceShooterMultiplayer
             Raylib.DrawText("IP Address:", 300, 250, 20, Color.White);
             RayGui.GuiTextBox(new Rectangle(400, 250, 200, 30), ip[0], 20, textBoxActive);
 
-            // Visual only
             RayGui.GuiButton(new Rectangle(400, 300, 200, 40), "Host Game");
             RayGui.GuiButton(new Rectangle(400, 350, 200, 40), "Join Game");
 
@@ -120,18 +120,19 @@ namespace SpaceShooterMultiplayer
                 net.IsConnected ? Color.Green : Color.Yellow);
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                          PLAYING STATE                            */
-        /* ------------------------------------------------------------------ */
+        /* --------------------------------------------------------------------- */
+        /*                            PLAYING STATE                              */
+        /* --------------------------------------------------------------------- */
         private void UpdatePlaying()
         {
-            if (!net.IsConnected)
+            // Host may play even with no players connected
+            if (!net.IsConnected && !net.IsHost)
             {
                 state = State.Menu;
                 return;
             }
 
-            // Update bullets first (remote ones may already be in net.Bullets)
+            // Update remote bullets
             foreach (var b in net.Bullets)
                 b.Update();
 
