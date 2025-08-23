@@ -1,4 +1,5 @@
 ﻿// NetworkManager.cs
+using NetworkComponentSystem;
 using Raylib_cs;
 using System.Collections.Generic;
 using System.Net;
@@ -25,6 +26,8 @@ namespace SpaceShooterMultiplayer
         // ---------- Shared data ----------
         private readonly Dictionary<int, Player> players = new Dictionary<int, Player>();
         private readonly List<Bullet> bullets = new List<Bullet>();
+
+        Dictionary<int, NetworkEntity> networkEntities = new Dictionary<int, NetworkEntity>();
 
         public IReadOnlyDictionary<int, Player> Players => players;
         public List<Bullet> Bullets => bullets;
