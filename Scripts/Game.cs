@@ -1,5 +1,4 @@
-﻿// Game.cs
-using Raylib_cs;
+﻿using Raylib_cs;
 using System.Numerics;
 using System.Collections.Generic;
 
@@ -154,7 +153,7 @@ namespace SpaceShooterMultiplayer
                     type = "Bullet",
                     data = new
                     {
-                        OwnerId = localPlayer.Id,
+                        OwnerId = localPlayer.playerId,
                         X = pos.X,
                         Y = pos.Y,
                         VX = vel.X,
@@ -166,7 +165,7 @@ namespace SpaceShooterMultiplayer
                 net.Send(bulletPayload);
 
                 // Add the bullet locally
-                net.Bullets.Add(new Bullet(pos, vel, localPlayer.Color, localPlayer.Id));
+                net.Bullets.Add(new Bullet(pos, vel, localPlayer.Color, localPlayer.playerId));
 
                 bulletCooldown = 20;
             }
@@ -176,7 +175,7 @@ namespace SpaceShooterMultiplayer
                 type = "PlayerState",
                 data = new
                 {
-                    Id = localPlayer.Id,
+                    Id = localPlayer.playerId,
                     X = localPlayer.Position.X,
                     Y = localPlayer.Position.Y,
                     Rotation = localPlayer.Rotation,

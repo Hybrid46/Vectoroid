@@ -13,6 +13,12 @@
         public HealthComponent healthComponent => _cachedHealthComponent;
         public MovementComponent movementComponent => _cachedMovementComponent;
 
+        public Entity()
+        {
+            AddComponent(new Transform());
+            Console.WriteLine($"Entity {GetHashCode()} created");
+        }
+
         public T AddComponent<T>(T component) where T : Component
         {
             component.Entity = this;
@@ -52,7 +58,7 @@
         public void Destroy()
         {
             destroy = true;
-            //Console.WriteLine($"Entity {GetHashCode()} destroyed");
+            Console.WriteLine($"Entity {GetHashCode()} destroyed");
         }
     }
 }

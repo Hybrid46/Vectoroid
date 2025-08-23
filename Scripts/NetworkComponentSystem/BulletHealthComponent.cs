@@ -2,21 +2,17 @@
 {
     public class BulletHealthComponent : HealthComponent, IUpdatable
     {
-        public BulletHealthComponent(int maxHP) : base(maxHP)
-        {
-
-        }
+        public BulletHealthComponent(int maxHP) : base(maxHP) { }
 
         public void Update()
         {
-            // Damage over time
-            TakeDamage(1);
+            TakeDamage(1); // Damage over time
         }
 
         protected override void Die()
         {
             Entity.Destroy();
-            Console.WriteLine("Bullet destroyed!");            
+            Console.WriteLine("Bullet destroyed!");
         }
     }
 }

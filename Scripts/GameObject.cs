@@ -1,5 +1,4 @@
-﻿// GameObject.cs
-using Raylib_cs;
+﻿using Raylib_cs;
 using System.Numerics;
 
 namespace SpaceShooterMultiplayer
@@ -8,13 +7,13 @@ namespace SpaceShooterMultiplayer
     {
         public Vector2 Position { get; set; }
         public Color Color { get; set; }
-        public int Id { get; set; }
+        public int playerId { get; set; }
 
-        protected GameObject(Vector2 pos, Color col, int id)
+        protected GameObject(Vector2 pos, Color col, int playerId)
         {
             Position = pos;
             Color = col;
-            Id = id;
+            this.playerId = playerId;
         }
 
         public abstract void Update();

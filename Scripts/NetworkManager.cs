@@ -1,5 +1,4 @@
-﻿// NetworkManager.cs
-using NetworkComponentSystem;
+﻿using NetworkComponentSystem;
 using Raylib_cs;
 using System.Collections.Generic;
 using System.Net;

@@ -15,7 +15,8 @@ namespace NetworkComponentSystem
             {
                 if (_position != value)
                 {
-                    _position = value; Dirty = true;
+                    _position = value;
+                    Dirty = true;
                 }
             }
         }
@@ -27,7 +28,8 @@ namespace NetworkComponentSystem
             {
                 if (_rotation != value)
                 {
-                    _rotation = value; Dirty = true;
+                    _rotation = value;
+                    Dirty = true;
                 }
             }
         }
@@ -39,9 +41,25 @@ namespace NetworkComponentSystem
             {
                 if (_scale != value)
                 {
-                    _scale = value; Dirty = true;
+                    _scale = value;
+                    Dirty = true;
                 }
             }
+        }
+
+        public static void Encode(BinaryWriter bw, Transform t)
+        {
+            bw.Write(t.Position.X);
+            bw.Write(t.Position.Y);
+            bw.Write(t.Rotation);
+            bw.Write(t.Scale);
+        }
+
+        public static void Decode(BinaryReader br, Transform t)
+        {
+            t.Position = new Vector2(br.ReadSingle(), br.ReadSingle());
+            t.Rotation = br.ReadSingle();
+            t.Scale = br.ReadSingle();
         }
     }
 }

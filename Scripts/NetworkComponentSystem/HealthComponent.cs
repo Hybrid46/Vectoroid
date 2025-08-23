@@ -1,4 +1,6 @@
-﻿namespace NetworkComponentSystem
+﻿using System.Numerics;
+
+namespace NetworkComponentSystem
 {
     public class HealthComponent : Component
     {
@@ -40,6 +42,7 @@
         public void TakeDamage(int amount)
         {
             CurrentHP = Math.Clamp(CurrentHP - amount, 0, MaxHP);
+            MarkDirty();
             if (CurrentHP == 0) Die();
         }
 
@@ -48,6 +51,18 @@
             Entity.Destroy();
             MarkDirty();
             Console.WriteLine($"Entity {GetHashCode()} died!");
+        }
+
+        public static void Encode(BinaryWriter bw, HealthComponent h)
+        {
+            bw.Write(h.CurrentHP);
+            bw.Write(h.MaxHP);
+        }
+
+        public static void Decode(BinaryReader br, HealthComponent h)
+        {
+            h.CurrentHP = br.ReadInt32();
+            h.MaxHP = br.ReadInt32();
         }
     }
 }
