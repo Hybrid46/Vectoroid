@@ -23,6 +23,11 @@ namespace NetworkComponentSystem
             }
         }
 
+        public ColorComponent(Color color)
+        {
+            Color = color;
+        }
+
         public static void Encode(BinaryWriter bw, ColorComponent c)
         {
             bw.Write(c._color.R);

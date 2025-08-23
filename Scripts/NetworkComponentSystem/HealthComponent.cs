@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace NetworkComponentSystem
+﻿namespace NetworkComponentSystem
 {
     public class HealthComponent : Component
     {
@@ -35,8 +33,8 @@ namespace NetworkComponentSystem
 
         public HealthComponent(int maxHP)
         {
-            _maxHP = maxHP;
-            _currentHP = maxHP;
+            MaxHP = maxHP;
+            CurrentHP = maxHP;
         }
 
         public void TakeDamage(int amount)

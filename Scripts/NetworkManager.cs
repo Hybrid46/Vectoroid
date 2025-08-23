@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using Transform = NetworkComponentSystem.Transform;
 
 namespace SpaceShooterMultiplayer
 {
@@ -132,7 +133,19 @@ namespace SpaceShooterMultiplayer
                     // Create a placeholder player for the new connection
                     int clientId = newClient.Client.RemoteEndPoint.GetHashCode();
                     if (!players.ContainsKey(clientId))
+                    {
                         players[clientId] = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, clientId);
+
+                        Entity e = new Entity();
+                        e.AddComponent(new Transform());
+                        e.AddComponent(new HealthComponent(100));
+                        e.AddComponent(new MovementComponent(Vector2.Zero, 0.1f));
+                        e.AddComponent(new ColorComponent(Color.Blue));
+
+                        NetworkEntity networkEntity = new NetworkEntity(clientId, e);
+
+                        networkEntities.Add(clientId, networkEntity);
+                    }
                 }
             }
 
