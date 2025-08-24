@@ -20,17 +20,12 @@ namespace SpaceShooterMultiplayer
         public bool IsHost { get; private set; }
         public bool IsConnected => IsHost || (stream != null && stream.CanRead && stream.CanWrite);
         public string Status { get; private set; } = "Disconnected";
-
         public int LocalPlayerId { get; private set; } = -1; // 0 for host, otherwise unique hash
 
         // ---------- Shared data ----------
-        private readonly Dictionary<int, Player> players = new Dictionary<int, Player>();
-        private readonly List<Bullet> bullets = new List<Bullet>();
-
         Dictionary<int, NetworkEntity> networkEntities = new Dictionary<int, NetworkEntity>();
 
-        public IReadOnlyDictionary<int, Player> Players => players;
-        public List<Bullet> Bullets => bullets;
+        public Entity playerEntity; // The local player's entity
 
         // ---------- Client connections (for host) ----------
         private readonly List<TcpClient> clientConnections = new List<TcpClient>();
@@ -130,20 +125,13 @@ namespace SpaceShooterMultiplayer
                     TcpClient newClient = listener.AcceptTcpClient();
                     clientConnections.Add(newClient);
                     clientBuffers[newClient] = "";
+
                     // Create a placeholder player for the new connection
                     int clientId = newClient.Client.RemoteEndPoint.GetHashCode();
-                    if (!players.ContainsKey(clientId))
+
+                    if (!networkEntities.ContainsKey(clientId))
                     {
-                        players[clientId] = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, clientId);
-
-                        Entity e = new Entity();
-                        e.AddComponent(new Transform());
-                        e.AddComponent(new HealthComponent(100));
-                        e.AddComponent(new MovementComponent(Vector2.Zero, 0.1f));
-                        e.AddComponent(new ColorComponent(Color.Blue));
-
-                        NetworkEntity networkEntity = new NetworkEntity(clientId, e);
-
+                        NetworkEntity networkEntity = new NetworkEntity(clientId, playerEntity);
                         networkEntities.Add(clientId, networkEntity);
                     }
                 }

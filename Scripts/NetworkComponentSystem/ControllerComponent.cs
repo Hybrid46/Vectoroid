@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace NetworkComponentSystem
 {
-    // Local component to handle user input and control an entity -> Can be useful to share resources btween host/clients for example using PIDs
+    // Local component to handle user input and control an entity -> Can be useful to share resources between host/clients for example using PIDs
     public class ControllerComponent : Component, IUpdatable
     {
         public bool IsThrusting { get; set; }

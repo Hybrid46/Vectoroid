@@ -1,6 +1,8 @@
 ﻿using Raylib_cs;
 using System.Numerics;
 using System.Collections.Generic;
+using NetworkComponentSystem;
+using Transform = NetworkComponentSystem.Transform;
 
 namespace SpaceShooterMultiplayer
 {
@@ -10,7 +12,8 @@ namespace SpaceShooterMultiplayer
         private State state = State.Menu;
 
         private readonly NetworkManager net;
-        private Player localPlayer;
+        private Entity localPlayer;
+        private List<Entity> entities = new List<Entity>();
 
         private readonly string[] ip = new[] { "127.0.0.1" };
         private int bulletCooldown = 0;
@@ -91,16 +94,30 @@ namespace SpaceShooterMultiplayer
             if (hostClicked)
             {
                 net.Host();   // non‑blocking
-                localPlayer = new Player(new Vector2(200, 350), 0f, 100, false, Color.Green, 0);
+                int localId = 0;
+                CreatePlayer(localId);
                 state = State.Playing;
             }
             else if (joinClicked)
             {
                 net.Join(ip[0]);   // blocking until connected
                 int localId = net.LocalPlayerId;
-                localPlayer = new Player(new Vector2(800, 350), 180f, 100, false, Color.Green, localId);
+                CreatePlayer(localId);
                 state = State.Playing;
             }
+        }
+
+        private void CreatePlayer(int localId)
+        {
+            Entity e = new Entity();
+            e.AddComponent(new Transform());
+            e.AddComponent(new HealthComponent(100));
+            e.AddComponent(new MovementComponent(Vector2.Zero, 0.1f));
+            e.AddComponent(new DrawComponent(0, Color.Green));
+            e.AddComponent(new ControllerComponent());
+
+            localPlayer = e;
+            entities.Add(e);
         }
 
         private void DrawMenu()
@@ -131,11 +148,7 @@ namespace SpaceShooterMultiplayer
                 return;
             }
 
-            // Update remote bullets
-            foreach (var b in net.Bullets)
-                b.Update();
-
-            localPlayer.Update();
+            HandleEntites();
 
             if (bulletCooldown > 0) bulletCooldown--;
 
@@ -186,20 +199,34 @@ namespace SpaceShooterMultiplayer
             net.Send(statePayload);
         }
 
+        private void HandleEntites()
+        {
+            Stack<Entity> entitiesToRemove = new Stack<Entity>();
+
+            foreach (Entity entity in entities)
+            {
+                entity.Update();
+                if (entity.destroy) entitiesToRemove.Push(entity);
+            }
+
+            //Remove dead entites
+            while (entitiesToRemove.Count > 0)
+            {
+                Entity entity = entitiesToRemove.Pop();
+                entities.Remove(entity);
+                Console.WriteLine($"Removed entity: {entity}");
+            }
+        }
+
         private void DrawPlaying()
         {
-            foreach (var kvp in net.Players)
-                kvp.Value.Draw();
+            foreach (Entity entity in entities)
+            {
+                entity.drawComponent?.Draw();
+            }
 
-            foreach (var b in net.Bullets)
-                b.Draw();
-
-            localPlayer.Draw();
-
-            Raylib.DrawText($"HEALTH: {localPlayer.Health}%", 20, 20, 20, Color.Green);
-            Raylib.DrawText($"STATUS: {net.Status}", 20, 50, 20,
-                net.IsConnected ? Color.Green : Color.Red);
-
+            Raylib.DrawText($"HEALTH: {localPlayer.healthComponent.CurrentHP}%", 20, 20, 20, Color.Green);
+            Raylib.DrawText($"STATUS: {net.Status}", 20, 50, 20, net.IsConnected ? Color.Green : Color.Red);
             Raylib.DrawText("CONTROLS:", 800, 20, 20, Color.White);
             Raylib.DrawText("WASD - Move/Steer", 800, 50, 18, Color.LightGray);
             Raylib.DrawText("SPACE - Shoot", 800, 80, 18, Color.LightGray);
