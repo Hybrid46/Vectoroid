@@ -12,6 +12,7 @@ namespace NetworkComponentSystem
 
         public NetworkEntity(int id, Entity local) { Id = id; Local = local; }
 
+        //Packet layout -> [MessageType][EntityId][ComponentMask][Payload]
         internal static byte[] EncodeEntity(NetworkEntity ne)
         {
             using var ms = new MemoryStream();
@@ -24,7 +25,8 @@ namespace NetworkComponentSystem
             if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)ComponentBits.Transform;
             if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Health;
             if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Movement;
-            if (ne.Local.GetComponent<ColorComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Color;
+            if (ne.Local.GetComponent<BulletHealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.BulletHealth;
+            if (ne.Local.GetComponent<DrawComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Draw;
 
             bw.Write(mask);                          // ComponentMask
 
@@ -32,13 +34,15 @@ namespace NetworkComponentSystem
             if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Encode(bw, ne.Local.GetComponent<Transform>());
             if ((mask & (uint)ComponentBits.Health) != 0) HealthComponent.Encode(bw, ne.Local.GetComponent<HealthComponent>());
             if ((mask & (uint)ComponentBits.Movement) != 0) MovementComponent.Encode(bw, ne.Local.GetComponent<MovementComponent>());
-            if ((mask & (uint)ComponentBits.Color) != 0) ColorComponent.Encode(bw, ne.Local.GetComponent<ColorComponent>());
+            if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Encode(bw, ne.Local.GetComponent<BulletHealthComponent>());
+            if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Encode(bw, ne.Local.GetComponent<DrawComponent>());
 
             // Reset dirty flags
             ne.Local.GetComponent<Transform>()?.ResetDirty();
             ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
             ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
-            ne.Local.GetComponent<ColorComponent>()?.ResetDirty();
+            ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
+            ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
 
             return ms.ToArray();
         }

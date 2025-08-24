@@ -8,8 +8,9 @@
             Transform = 1 << 0,
             Health = 1 << 1,
             Movement = 1 << 2,
-            Color = 1 << 3,
-            BulletHealth = 1 << 4
+            BulletHealth = 1 << 3,
+            Draw = 1 << 4,
+            Controller = 1 << 5,
         }
 
         public Entity Entity { get; set; }

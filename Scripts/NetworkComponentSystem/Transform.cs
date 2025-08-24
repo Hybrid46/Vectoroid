@@ -16,7 +16,7 @@ namespace NetworkComponentSystem
                 if (_position != value)
                 {
                     _position = value;
-                    Dirty = true;
+                    MarkDirty();
                 }
             }
         }
@@ -29,7 +29,7 @@ namespace NetworkComponentSystem
                 if (_rotation != value)
                 {
                     _rotation = value;
-                    Dirty = true;
+                    MarkDirty();
                 }
             }
         }
@@ -42,7 +42,7 @@ namespace NetworkComponentSystem
                 if (_scale != value)
                 {
                     _scale = value;
-                    Dirty = true;
+                    MarkDirty();
                 }
             }
         }

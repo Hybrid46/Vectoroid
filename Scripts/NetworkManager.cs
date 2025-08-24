@@ -284,27 +284,5 @@ namespace SpaceShooterMultiplayer
                 }
             }
         }
-
-        /* ------------------------------------------------------------------ */
-        /*                                 DTOs                                 */
-        /* ------------------------------------------------------------------ */
-        private record PlayerStateDto
-        {
-            public int Id { get; init; }
-            public float X { get; init; }
-            public float Y { get; init; }
-            public float Rotation { get; init; }
-            public int Health { get; init; }
-            public bool Thrust { get; init; }
-        }
-
-        private record BulletDto
-        {
-            public int OwnerId { get; init; }
-            public float X { get; init; }
-            public float Y { get; init; }
-            public float VX { get; init; }
-            public float VY { get; init; }
-        }
     }
 }
