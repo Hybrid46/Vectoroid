@@ -23,7 +23,7 @@ namespace SpaceShooterMultiplayer
         public int LocalPlayerId { get; private set; } = -1; // 0 for host, otherwise unique hash
 
         // ---------- Shared data ----------
-        public Dictionary<int, NetworkEntity> networkEntities = new Dictionary<int, NetworkEntity>();
+        public Dictionary<Guid, NetworkEntity> networkEntities = new Dictionary<Guid, NetworkEntity>();
 
         public Entity playerEntity; // The local player's entity
 
@@ -125,15 +125,6 @@ namespace SpaceShooterMultiplayer
                     TcpClient newClient = listener.AcceptTcpClient();
                     clientConnections.Add(newClient);
                     clientBuffers[newClient] = "";
-
-                    // Create a placeholder player for the new connection
-                    int clientId = newClient.Client.RemoteEndPoint.GetHashCode();
-
-                    if (!networkEntities.ContainsKey(clientId))
-                    {
-                        NetworkEntity networkEntity = new NetworkEntity(clientId, playerEntity);
-                        networkEntities.Add(clientId, networkEntity);
-                    }
                 }
             }
 
@@ -161,7 +152,8 @@ namespace SpaceShooterMultiplayer
                     string chunk = Encoding.UTF8.GetString(buffer, 0, read);
                     clientBuffers[c] += chunk;
 
-                    ProcessBuffer(c, clientBuffers[c], true);
+                    //TODO: Process the buffer to extract complete messages
+                    //ProcessBuffer(c, clientBuffers[c], true);
                 }
             }
             else
@@ -178,7 +170,8 @@ namespace SpaceShooterMultiplayer
                     }
                     string chunk = Encoding.UTF8.GetString(buffer, 0, read);
                     clientBuffer += chunk;
-                    ProcessBuffer(null, clientBuffer, false);
+                    //TODO : Implement client-side reading from the stream
+                    //ProcessBuffer(null, clientBuffer, false);
                 }
             }
         }
@@ -186,28 +179,30 @@ namespace SpaceShooterMultiplayer
         /* ------------------------------------------------------------------ */
         /*                          PROCESS BUFFER                           */
         /* ------------------------------------------------------------------ */
-        private void ProcessBuffer(TcpClient? sender, string buffer, bool isHost)
+        private void ProcessBuffer(TcpClient? sender, byte[] buffer, bool isHost)
         {
-            int idx;
-            while ((idx = buffer.IndexOf('\n')) != -1)
-            {
-                string line = buffer.Substring(0, idx).Trim();
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    ProcessMessage(line, sender);
-                }
-                buffer = buffer.Substring(idx + 1);
-            }
+            //TODO: Implement buffer processing to extract complete messages
+            //int idx;
+            //while ((idx = buffer.IndexOf('\n')) != -1)
+            //{
+            //    string line = buffer.Substring(0, idx).Trim();
+            //    if (!string.IsNullOrWhiteSpace(line))
+            //    {
+            //        ProcessMessage(line, sender);
+            //    }
+            //    buffer = buffer.Substring(idx + 1);
+            //}
 
-            if (sender != null) clientBuffers[sender] = buffer;
-            else clientBuffer = buffer;
+            //if (sender != null) clientBuffers[sender] = buffer;
+            //else clientBuffer = buffer;
         }
 
         /* ------------------------------------------------------------------ */
         /*                           MESSAGE PROCESSING                       */
         /* ------------------------------------------------------------------ */
-        private void ProcessMessage(string json, TcpClient? sender)
+        private void ProcessMessage(byte[] data, TcpClient? sender)
         {
+            //TODO: Implement message processing based on the received data
             //try
             //{
             //    var doc = JsonDocument.Parse(json);
@@ -254,23 +249,24 @@ namespace SpaceShooterMultiplayer
         /* ------------------------------------------------------------------ */
         private void Broadcast(string data, TcpClient? except = null)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(data);
-            for (int i = clientConnections.Count - 1; i >= 0; i--)
-            {
-                TcpClient c = clientConnections[i];
-                if (except != null && c == except) continue;
-                try
-                {
-                    NetworkStream ns = c.GetStream();
-                    ns.Write(bytes, 0, bytes.Length);
-                }
-                catch
-                {
-                    c.Close();
-                    clientConnections.RemoveAt(i);
-                    clientBuffers.Remove(c);
-                }
-            }
+            //TODO: Implement broadcasting to all clients except the 'except' client
+            //byte[] bytes = Encoding.UTF8.GetBytes(data);
+            //for (int i = clientConnections.Count - 1; i >= 0; i--)
+            //{
+            //    TcpClient c = clientConnections[i];
+            //    if (except != null && c == except) continue;
+            //    try
+            //    {
+            //        NetworkStream ns = c.GetStream();
+            //        ns.Write(bytes, 0, bytes.Length);
+            //    }
+            //    catch
+            //    {
+            //        c.Close();
+            //        clientConnections.RemoveAt(i);
+            //        clientBuffers.Remove(c);
+            //    }
+            //}
         }
     }
 }

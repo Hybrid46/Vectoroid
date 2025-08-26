@@ -111,7 +111,9 @@ namespace SpaceShooterMultiplayer
         private void CreatePlayer()
         {
             Entity e = new Entity();
-            e.AddComponent(new Transform());
+            Transform transform = e.AddComponent(new Transform());
+            transform.Position = new Vector2(500, 350);
+
             e.AddComponent(new HealthComponent(100));
             e.AddComponent(new MovementComponent(Vector2.Zero, 0.1f));
             e.AddComponent(new DrawComponent(0, Color.Green));
@@ -120,8 +122,8 @@ namespace SpaceShooterMultiplayer
             localPlayer = e;
             entities.Add(e);
 
-            int localId = e.GetHashCode();
-            net.networkEntities.Add(localId, new NetworkEntity(localId, e));
+            Guid id = Guid.NewGuid();
+            net.networkEntities.Add(id, new NetworkEntity(id, playerId, e));
         }
 
         private void CreateBullet()
@@ -142,8 +144,8 @@ namespace SpaceShooterMultiplayer
 
             entities.Add(e);
 
-            int id = e.GetHashCode();
-            net.networkEntities.Add(id, new NetworkEntity(id, e));
+            Guid id = Guid.NewGuid();
+            net.networkEntities.Add(id, new NetworkEntity(id, playerId, e));
         }
 
         private void DrawMenu()
@@ -183,39 +185,13 @@ namespace SpaceShooterMultiplayer
                 // Add the bullet locally
                 CreateBullet();
 
-                // Create the payload
-                //var bulletPayload = new
-                //{
-                //    type = "Bullet",
-                //    data = new
-                //    {
-                //        OwnerId = localPlayer.playerId,
-                //        X = pos.X,
-                //        Y = pos.Y,
-                //        VX = vel.X,
-                //        VY = vel.Y
-                //    }
-                //};
-
-                // Send to the network
+                // TODO Send to the network
                 //net.Send(bulletPayload);
 
                 bulletCooldown = 20;
             }
 
-            //var statePayload = new
-            //{
-            //    type = "PlayerState",
-            //    data = new
-            //    {
-            //        Id = localPlayer.playerId,
-            //        X = localPlayer.Position.X,
-            //        Y = localPlayer.Position.Y,
-            //        Rotation = localPlayer.Rotation,
-            //        Health = localPlayer.Health,
-            //        Thrust = localPlayer.IsThrusting
-            //    }
-            //};
+            // TODO Send to the network
             //net.Send(statePayload);
         }
 
