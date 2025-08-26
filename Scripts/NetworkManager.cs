@@ -23,7 +23,7 @@ namespace SpaceShooterMultiplayer
         public int LocalPlayerId { get; private set; } = -1; // 0 for host, otherwise unique hash
 
         // ---------- Shared data ----------
-        Dictionary<int, NetworkEntity> networkEntities = new Dictionary<int, NetworkEntity>();
+        public Dictionary<int, NetworkEntity> networkEntities = new Dictionary<int, NetworkEntity>();
 
         public Entity playerEntity; // The local player's entity
 
@@ -208,45 +208,45 @@ namespace SpaceShooterMultiplayer
         /* ------------------------------------------------------------------ */
         private void ProcessMessage(string json, TcpClient? sender)
         {
-            try
-            {
-                var doc = JsonDocument.Parse(json);
-                string type = doc.RootElement.GetProperty("type").GetString();
-                JsonElement data = doc.RootElement.GetProperty("data");
+            //try
+            //{
+            //    var doc = JsonDocument.Parse(json);
+            //    string type = doc.RootElement.GetProperty("type").GetString();
+            //    JsonElement data = doc.RootElement.GetProperty("data");
 
-                if (type == "PlayerState")
-                {
-                    var p = JsonSerializer.Deserialize<PlayerStateDto>(data.GetRawText());
-                    if (!players.TryGetValue(p.Id, out var existing))
-                    {
-                        existing = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, p.Id);
-                        players[p.Id] = existing;
-                    }
-                    existing.Position = new Vector2(p.X, p.Y);
-                    existing.Rotation = p.Rotation;
-                    existing.Health = p.Health;
-                    existing.IsThrusting = p.Thrust;
-                }
-                else if (type == "Bullet")
-                {
-                    var b = JsonSerializer.Deserialize<BulletDto>(data.GetRawText());
-                    bullets.Add(new Bullet(
-                        new Vector2(b.X, b.Y),
-                        new Vector2(b.VX, b.VY),
-                        Color.Red,
-                        b.OwnerId));
-                }
+            //    if (type == "PlayerState")
+            //    {
+            //        var p = JsonSerializer.Deserialize<PlayerStateDto>(data.GetRawText());
+            //        if (!players.TryGetValue(p.Id, out var existing))
+            //        {
+            //            existing = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, p.Id);
+            //            players[p.Id] = existing;
+            //        }
+            //        existing.Position = new Vector2(p.X, p.Y);
+            //        existing.Rotation = p.Rotation;
+            //        existing.Health = p.Health;
+            //        existing.IsThrusting = p.Thrust;
+            //    }
+            //    else if (type == "Bullet")
+            //    {
+            //        var b = JsonSerializer.Deserialize<BulletDto>(data.GetRawText());
+            //        bullets.Add(new Bullet(
+            //            new Vector2(b.X, b.Y),
+            //            new Vector2(b.VX, b.VY),
+            //            Color.Red,
+            //            b.OwnerId));
+            //    }
 
-                // Forward the message to all other participants (if we are the host)
-                if (IsHost && sender != null)
-                {
-                    Broadcast(json + "\n", sender);
-                }
-            }
-            catch
-            {
-                // ignore malformed packets
-            }
+            //    // Forward the message to all other participants (if we are the host)
+            //    if (IsHost && sender != null)
+            //    {
+            //        Broadcast(json + "\n", sender);
+            //    }
+            //}
+            //catch
+            //{
+            //    // ignore malformed packets
+            //}
         }
 
         /* ------------------------------------------------------------------ */

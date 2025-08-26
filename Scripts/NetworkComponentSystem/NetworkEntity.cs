@@ -3,14 +3,17 @@ using static NetworkComponentSystem.Component;
 
 namespace NetworkComponentSystem
 {
-    internal class NetworkEntity
+    public class NetworkEntity
     {
         // unique per session
-        public int Id;
+        public int id;
         // the *real* entity (server) or the ghost (client)
         public Entity Local;
 
-        public NetworkEntity(int id, Entity local) { Id = id; Local = local; }
+        public NetworkEntity(int id, Entity local) { 
+            this.id = id;
+            Local = local;
+        }
 
         //Packet layout -> [MessageType][EntityId][ComponentMask][Payload]
         internal static byte[] EncodeEntity(NetworkEntity ne)
@@ -19,7 +22,7 @@ namespace NetworkComponentSystem
             using var bw = new BinaryWriter(ms);
 
             bw.Write((byte)2);                       // MessageType = Update
-            bw.Write(ne.Id);                         // EntityId
+            bw.Write(ne.id);                         // EntityId
 
             var mask = 0u;
             if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)ComponentBits.Transform;

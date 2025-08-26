@@ -47,6 +47,15 @@ namespace NetworkComponentSystem
             }
         }
 
+        public Vector2 forward { get { return Forward(); } }
+
+        public Vector2 Forward()
+        {
+            float rad = MathF.PI * Rotation / 180f;
+            Vector2 dir = new Vector2(MathF.Sin(rad), -MathF.Cos(rad));
+            return dir;
+        }
+
         public static void Encode(BinaryWriter bw, Transform t)
         {
             bw.Write(t.Position.X);

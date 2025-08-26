@@ -17,6 +17,7 @@ namespace SpaceShooterMultiplayer
 
         private readonly string[] ip = new[] { "127.0.0.1" };
         private int bulletCooldown = 0;
+        int playerId;
 
         private readonly List<Star> stars = new List<Star>();
         private readonly Random rnd = new Random();
@@ -94,20 +95,20 @@ namespace SpaceShooterMultiplayer
             if (hostClicked)
             {
                 net.Host();   // non‑blocking
-                int localId = 0;
-                CreatePlayer(localId);
+                playerId = 0;
+                CreatePlayer();
                 state = State.Playing;
             }
             else if (joinClicked)
             {
                 net.Join(ip[0]);   // blocking until connected
-                int localId = net.LocalPlayerId;
-                CreatePlayer(localId);
+                playerId = net.LocalPlayerId;
+                CreatePlayer();
                 state = State.Playing;
             }
         }
 
-        private void CreatePlayer(int localId)
+        private void CreatePlayer()
         {
             Entity e = new Entity();
             e.AddComponent(new Transform());
@@ -118,6 +119,31 @@ namespace SpaceShooterMultiplayer
 
             localPlayer = e;
             entities.Add(e);
+
+            int localId = e.GetHashCode();
+            net.networkEntities.Add(localId, new NetworkEntity(localId, e));
+        }
+
+        private void CreateBullet()
+        {
+            Vector2 pos = localPlayer.transform.Position + localPlayer.transform.forward * 30f;
+            Vector2 vel = localPlayer.transform.forward * 12f;
+
+            Entity e = new Entity();
+
+            Transform bulletTransform = new Transform();
+            bulletTransform.Position = pos;
+            bulletTransform.Rotation = localPlayer.transform.Rotation;
+
+            e.AddComponent(bulletTransform);
+            e.AddComponent(new BulletHealthComponent(200));
+            e.AddComponent(new MovementComponent(bulletTransform.forward, 12f));
+            e.AddComponent(new DrawComponent(1, Color.Green));
+
+            entities.Add(e);
+
+            int id = e.GetHashCode();
+            net.networkEntities.Add(id, new NetworkEntity(id, e));
         }
 
         private void DrawMenu()
@@ -154,49 +180,43 @@ namespace SpaceShooterMultiplayer
 
             if (Raylib.IsKeyPressed(KeyboardKey.Space) && bulletCooldown == 0)
             {
-                float rad = MathF.PI * localPlayer.Rotation / 180f;
-                var dir = new Vector2(MathF.Sin(rad), -MathF.Cos(rad));
-
-                var pos = localPlayer.Position + dir * 30f;
-                var vel = dir * 12f;
+                // Add the bullet locally
+                CreateBullet();
 
                 // Create the payload
-                var bulletPayload = new
-                {
-                    type = "Bullet",
-                    data = new
-                    {
-                        OwnerId = localPlayer.playerId,
-                        X = pos.X,
-                        Y = pos.Y,
-                        VX = vel.X,
-                        VY = vel.Y
-                    }
-                };
+                //var bulletPayload = new
+                //{
+                //    type = "Bullet",
+                //    data = new
+                //    {
+                //        OwnerId = localPlayer.playerId,
+                //        X = pos.X,
+                //        Y = pos.Y,
+                //        VX = vel.X,
+                //        VY = vel.Y
+                //    }
+                //};
 
                 // Send to the network
-                net.Send(bulletPayload);
-
-                // Add the bullet locally
-                net.Bullets.Add(new Bullet(pos, vel, localPlayer.Color, localPlayer.playerId));
+                //net.Send(bulletPayload);
 
                 bulletCooldown = 20;
             }
 
-            var statePayload = new
-            {
-                type = "PlayerState",
-                data = new
-                {
-                    Id = localPlayer.playerId,
-                    X = localPlayer.Position.X,
-                    Y = localPlayer.Position.Y,
-                    Rotation = localPlayer.Rotation,
-                    Health = localPlayer.Health,
-                    Thrust = localPlayer.IsThrusting
-                }
-            };
-            net.Send(statePayload);
+            //var statePayload = new
+            //{
+            //    type = "PlayerState",
+            //    data = new
+            //    {
+            //        Id = localPlayer.playerId,
+            //        X = localPlayer.Position.X,
+            //        Y = localPlayer.Position.Y,
+            //        Rotation = localPlayer.Rotation,
+            //        Health = localPlayer.Health,
+            //        Thrust = localPlayer.IsThrusting
+            //    }
+            //};
+            //net.Send(statePayload);
         }
 
         private void HandleEntites()
