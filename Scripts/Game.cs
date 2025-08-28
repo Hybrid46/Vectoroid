@@ -123,10 +123,23 @@ namespace SpaceShooterMultiplayer
             entities.Add(e);
 
             Guid id = Guid.NewGuid();
-            net.networkEntities.Add(id, new NetworkEntity(id, playerId, e));
+            NetworkEntity ne = new NetworkEntity(id, playerId, e);
+            net.networkEntities.Add(id, ne);
+
+            // Mark all components dirty so the first Add packet contains all data
+            transform.MarkDirty();
+            e.GetComponent<HealthComponent>().MarkDirty();
+            e.GetComponent<MovementComponent>().MarkDirty();
+            e.GetComponent<DrawComponent>().MarkDirty();
+
+            // *** Host only: send the new entity to all clients ***            
+            if (net.IsHost)
+            {
+                net.SendAddEntity(ne);
+            }
         }
 
-        private void CreateBullet()
+        private NetworkEntity CreateBullet()
         {
             Vector2 pos = localPlayer.transform.Position + localPlayer.transform.forward * 30f;
             Vector2 vel = localPlayer.transform.forward * 12f;
@@ -145,7 +158,16 @@ namespace SpaceShooterMultiplayer
             entities.Add(e);
 
             Guid id = Guid.NewGuid();
-            net.networkEntities.Add(id, new NetworkEntity(id, playerId, e));
+            NetworkEntity ne = new NetworkEntity(id, playerId, e);
+            net.networkEntities.Add(id, ne);
+
+            // Mark all components dirty
+            bulletTransform.MarkDirty();
+            e.GetComponent<BulletHealthComponent>().MarkDirty();
+            e.GetComponent<MovementComponent>().MarkDirty();
+            e.GetComponent<DrawComponent>().MarkDirty();
+
+            return ne;
         }
 
         private void DrawMenu()
@@ -182,17 +204,27 @@ namespace SpaceShooterMultiplayer
 
             if (Raylib.IsKeyPressed(KeyboardKey.Space) && bulletCooldown == 0)
             {
-                // Add the bullet locally
-                CreateBullet();
-
-                // TODO Send to the network
-                //net.Send(bulletPayload);
+                // *** Send the new bullet to the host ***
+                net.SendAddEntity(CreateBullet());
 
                 bulletCooldown = 20;
             }
 
-            // TODO Send to the network
-            //net.Send(statePayload);
+            // *** Send local updates (only dirty components) ***
+            foreach (var ne in net.networkEntities.Values)
+            {
+                if (net.IsHost)
+                {
+                    // host sends all dirty entities
+                    if (ne.Local.HasDirtyComponent()) net.SendUpdateEntity(ne);
+                }
+                else
+                {
+                    // client sends updates only for its own player
+                    if (ne.playerId == net.LocalPlayerId)
+                        net.SendUpdateEntity(ne);
+                }
+            }
         }
 
         private void HandleEntites()
@@ -211,6 +243,14 @@ namespace SpaceShooterMultiplayer
                 Entity entity = entitiesToRemove.Pop();
                 entities.Remove(entity);
                 Console.WriteLine($"Removed entity: {entity}");
+
+                // Find the corresponding NetworkEntity and send a destroy packet
+                var ne = net.GetNetworkEntity(entity);
+                if (ne != null)
+                {
+                    net.SendDestroyEntity(ne);
+                    net.networkEntities.Remove(ne.id);
+                }
             }
         }
 

@@ -1,11 +1,12 @@
-﻿using NetworkComponentSystem;
-using Raylib_cs;
+﻿// ─────────────────────────────────────────────────────────────────────
+// NetworkManager.cs – binary‑serialization networking
+// ─────────────────────────────────────────────────────────────────────
+using NetworkComponentSystem;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Numerics;
-using System.Text;
-using System.Text.Json;
+using System.Text;          // for optional debug logging
 using Transform = NetworkComponentSystem.Transform;
 
 namespace SpaceShooterMultiplayer
@@ -29,14 +30,15 @@ namespace SpaceShooterMultiplayer
 
         // ---------- Client connections (for host) ----------
         private readonly List<TcpClient> clientConnections = new List<TcpClient>();
-        private readonly Dictionary<TcpClient, string> clientBuffers = new Dictionary<TcpClient, string>();
+        //   buffer that still contains incomplete data for every client
+        private readonly Dictionary<TcpClient, byte[]> clientBuffers = new Dictionary<TcpClient, byte[]>();
 
         // ---------- Local buffer for a connected client ----------
-        private string clientBuffer = "";
+        private byte[] clientBuffer = Array.Empty<byte>();
 
-        /* ------------------------------------------------------------------ */
-        /*                               HOST                                 */
-        /* ------------------------------------------------------------------ */
+        /* ──────────────────────────────────────────────────────────────────────
+         *                               HOST
+         * ────────────────────────────────────────────────────────────────────── */
         public void Host()
         {
             try
@@ -53,9 +55,9 @@ namespace SpaceShooterMultiplayer
             }
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                               JOIN                                 */
-        /* ------------------------------------------------------------------ */
+        /* ──────────────────────────────────────────────────────────────────────
+         *                               JOIN
+         * ────────────────────────────────────────────────────────────────────── */
         public void Join(string ip)
         {
             try
@@ -85,23 +87,33 @@ namespace SpaceShooterMultiplayer
             catch { }
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                               SEND                                 */
-        /* ------------------------------------------------------------------ */
-        public void Send(object payload)
+        /* ──────────────────────────────────────────────────────────────────────
+         *                               SEND
+         * ────────────────────────────────────────────────────────────────────── */
+        /// <summary>
+        /// Sends a *length‑prefixed* binary packet.
+        /// The packet is first wrapped as [int32 length][payload].
+        /// </summary>
+        public void SendRaw(byte[] payload)
         {
             if (!IsConnected && !IsHost) return;
+
+            // prepend packet length
+            var packet = new byte[4 + payload.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(payload.Length), 0, packet, 0, 4);
+            Buffer.BlockCopy(payload, 0, packet, 4, payload.Length);
+
             try
             {
-                string json = JsonSerializer.Serialize(payload);
                 if (IsHost)
                 {
-                    Broadcast(json + "\n");
+                    // broadcast to all connected clients
+                    Broadcast(packet);
                 }
                 else
                 {
-                    byte[] data = Encoding.UTF8.GetBytes(json + "\n");
-                    stream.Write(data, 0, data.Length);
+                    // client → server
+                    stream.Write(packet, 0, packet.Length);
                 }
             }
             catch
@@ -110,25 +122,25 @@ namespace SpaceShooterMultiplayer
             }
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                              POLL                                  */
-        /* ------------------------------------------------------------------ */
+        /* ──────────────────────────────────────────────────────────────────────
+         *                               POLL
+         * ────────────────────────────────────────────────────────────────────── */
         public void Poll()
         {
             if (!IsConnected && !IsHost) return;
 
-            // ---- Host: accept new connections --------------------------------
+            /* ---- Host: accept new connections ---- */
             if (IsHost)
             {
                 while (listener.Pending())
                 {
                     TcpClient newClient = listener.AcceptTcpClient();
                     clientConnections.Add(newClient);
-                    clientBuffers[newClient] = "";
+                    clientBuffers[newClient] = Array.Empty<byte>();
                 }
             }
 
-            // ---- Read from all streams --------------------------------------
+            /* ---- Read from all streams ---- */
             if (IsHost)
             {
                 // read from each connected client
@@ -149,11 +161,16 @@ namespace SpaceShooterMultiplayer
                         continue;
                     }
 
-                    string chunk = Encoding.UTF8.GetString(buffer, 0, read);
-                    clientBuffers[c] += chunk;
+                    // Append the newly read bytes to the client's buffer
+                    var old = clientBuffers[c];
+                    var newBuf = new byte[old.Length + read];
+                    Buffer.BlockCopy(old, 0, newBuf, 0, old.Length);
+                    Buffer.BlockCopy(buffer, 0, newBuf, old.Length, read);
+                    clientBuffers[c] = newBuf;
 
-                    //TODO: Process the buffer to extract complete messages
-                    //ProcessBuffer(c, clientBuffers[c], true);
+                    // process all complete packets in the buffer
+                    var b = clientBuffers[c];
+                    ProcessBuffer(c, ref b, true);
                 }
             }
             else
@@ -168,105 +185,163 @@ namespace SpaceShooterMultiplayer
                         Disconnect();
                         return;
                     }
-                    string chunk = Encoding.UTF8.GetString(buffer, 0, read);
-                    clientBuffer += chunk;
-                    //TODO : Implement client-side reading from the stream
-                    //ProcessBuffer(null, clientBuffer, false);
+
+                    // Append the newly read bytes to the local buffer
+                    var old = clientBuffer;
+                    var newBuf = new byte[old.Length + read];
+                    Buffer.BlockCopy(old, 0, newBuf, 0, old.Length);
+                    Buffer.BlockCopy(buffer, 0, newBuf, old.Length, read);
+                    clientBuffer = newBuf;
+
+                    // process all complete packets
+                    ProcessBuffer(null, ref clientBuffer, false);
                 }
             }
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                          PROCESS BUFFER                           */
-        /* ------------------------------------------------------------------ */
-        private void ProcessBuffer(TcpClient? sender, byte[] buffer, bool isHost)
+        /* ──────────────────────────────────────────────────────────────────────
+         *                          PROCESS BUFFER
+         * ────────────────────────────────────────────────────────────────────── */
+        /// <summary>
+        /// Extracts full packets from the supplied byte array.
+        /// Packets are encoded as [int32 length][payload].
+        /// For each complete packet, <see cref="ProcessMessage"/> is invoked.
+        /// The remaining incomplete bytes (if any) are left in <paramref name="buffer"/>.
+        /// </summary>
+        private void ProcessBuffer(TcpClient? sender, ref byte[] buffer, bool isHost)
         {
-            //TODO: Implement buffer processing to extract complete messages
-            //int idx;
-            //while ((idx = buffer.IndexOf('\n')) != -1)
-            //{
-            //    string line = buffer.Substring(0, idx).Trim();
-            //    if (!string.IsNullOrWhiteSpace(line))
-            //    {
-            //        ProcessMessage(line, sender);
-            //    }
-            //    buffer = buffer.Substring(idx + 1);
-            //}
+            while (buffer.Length >= 4)
+            {
+                int packetLen = BitConverter.ToInt32(buffer, 0);
+                if (buffer.Length < 4 + packetLen) break;   // incomplete packet
 
-            //if (sender != null) clientBuffers[sender] = buffer;
-            //else clientBuffer = buffer;
+                // slice payload
+                var payload = new byte[packetLen];
+                Buffer.BlockCopy(buffer, 4, payload, 0, packetLen);
+
+                // remove the processed packet from the buffer
+                int remaining = buffer.Length - (4 + packetLen);
+                if (remaining > 0)
+                {
+                    var rest = new byte[remaining];
+                    Buffer.BlockCopy(buffer, 4 + packetLen, rest, 0, remaining);
+                    buffer = rest;
+                }
+                else
+                {
+                    buffer = Array.Empty<byte>();
+                }
+
+                // dispatch
+                ProcessMessage(payload, sender);
+            }
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                           MESSAGE PROCESSING                       */
-        /* ------------------------------------------------------------------ */
+        /* ──────────────────────────────────────────────────────────────────────
+         *                           MESSAGE PROCESSING
+         * ────────────────────────────────────────────────────────────────────── */
         private void ProcessMessage(byte[] data, TcpClient? sender)
         {
-            //TODO: Implement message processing based on the received data
-            //try
-            //{
-            //    var doc = JsonDocument.Parse(json);
-            //    string type = doc.RootElement.GetProperty("type").GetString();
-            //    JsonElement data = doc.RootElement.GetProperty("data");
+            // 1. If we are the host, broadcast the packet to all
+            //    other clients (except the sender).  The packet is
+            //    unchanged – it already contains the message type
+            //    (Add / Update / Destroy) and the payload.
+            if (IsHost && sender != null)
+            {
+                Broadcast(data, sender);
+            }
 
-            //    if (type == "PlayerState")
-            //    {
-            //        var p = JsonSerializer.Deserialize<PlayerStateDto>(data.GetRawText());
-            //        if (!players.TryGetValue(p.Id, out var existing))
-            //        {
-            //            existing = new Player(new Vector2(0, 0), 0f, 100, false, Color.Blue, p.Id);
-            //            players[p.Id] = existing;
-            //        }
-            //        existing.Position = new Vector2(p.X, p.Y);
-            //        existing.Rotation = p.Rotation;
-            //        existing.Health = p.Health;
-            //        existing.IsThrusting = p.Thrust;
-            //    }
-            //    else if (type == "Bullet")
-            //    {
-            //        var b = JsonSerializer.Deserialize<BulletDto>(data.GetRawText());
-            //        bullets.Add(new Bullet(
-            //            new Vector2(b.X, b.Y),
-            //            new Vector2(b.VX, b.VY),
-            //            Color.Red,
-            //            b.OwnerId));
-            //    }
-
-            //    // Forward the message to all other participants (if we are the host)
-            //    if (IsHost && sender != null)
-            //    {
-            //        Broadcast(json + "\n", sender);
-            //    }
-            //}
-            //catch
-            //{
-            //    // ignore malformed packets
-            //}
+            // 2. Apply the packet to our local entity store.
+            //    NetworkEntity.ProcessEntity will decode the packet,
+            //    update or create the entity, and reset dirty flags.
+            NetworkEntity.ProcessEntity(data, networkEntities);
         }
 
-        /* ------------------------------------------------------------------ */
-        /*                                 BROADCAST                           */
-        /* ------------------------------------------------------------------ */
-        private void Broadcast(string data, TcpClient? except = null)
+        /* ──────────────────────────────────────────────────────────────────────
+         *                               BROADCAST
+         * ────────────────────────────────────────────────────────────────────── */
+        /// <summary>
+        /// Sends <paramref name="data"/> to every connected client except
+        /// <paramref name="except"/> (if non‑null).
+        /// </summary>
+        private void Broadcast(byte[] data, TcpClient? except = null)
         {
-            //TODO: Implement broadcasting to all clients except the 'except' client
-            //byte[] bytes = Encoding.UTF8.GetBytes(data);
-            //for (int i = clientConnections.Count - 1; i >= 0; i--)
-            //{
-            //    TcpClient c = clientConnections[i];
-            //    if (except != null && c == except) continue;
-            //    try
-            //    {
-            //        NetworkStream ns = c.GetStream();
-            //        ns.Write(bytes, 0, bytes.Length);
-            //    }
-            //    catch
-            //    {
-            //        c.Close();
-            //        clientConnections.RemoveAt(i);
-            //        clientBuffers.Remove(c);
-            //    }
-            //}
+            for (int i = clientConnections.Count - 1; i >= 0; i--)
+            {
+                TcpClient c = clientConnections[i];
+                if (except != null && c == except) continue;
+
+                try
+                {
+                    NetworkStream ns = c.GetStream();
+                    ns.Write(data, 0, data.Length);
+                }
+                catch
+                {
+                    // socket error – drop the client
+                    c.Close();
+                    clientConnections.RemoveAt(i);
+                    clientBuffers.Remove(c);
+                }
+            }
+        }
+
+        /* ──────────────────────────────────────────────────────────────────────
+         *  Helpers for sending specific entity messages
+         * ────────────────────────────────────────────────────────────────────── */
+        /// <summary>
+        /// Sends a full Add message for <paramref name="ne"/>.
+        /// </summary>
+        public void SendAddEntity(NetworkEntity ne)
+        {
+            byte[] payload = NetworkEntity.EncodeEntity(ne, 0); // MessageType 0 = Add
+            SendRaw(payload);
+        }
+
+        /// <summary>
+        /// Sends a Destroy message for <paramref name="ne"/>.
+        /// </summary>
+        public void SendDestroyEntity(NetworkEntity ne)
+        {
+            // Build a packet: [byte msgType][int32 playerId][int32 guid parts][uint32 mask (0)]
+            using MemoryStream ms = new MemoryStream();
+            using BinaryWriter bw = new BinaryWriter(ms);
+            bw.Write((byte)1);                                 // MessageType 1 = Destroy
+            bw.Write(ne.playerId);
+            var (a, b, c, d) = GuidPacker.PackGuid(ne.id);
+            bw.Write(a); bw.Write(b); bw.Write(c); bw.Write(d);
+            bw.Write((uint)0);                                // mask = 0
+            SendRaw(ms.ToArray());
+        }
+
+        /// <summary>
+        /// Sends an Update message for <paramref name="ne"/>.  Only dirty components
+        /// will be encoded (handled inside EncodeEntity).
+        /// </summary>
+        public void SendUpdateEntity(NetworkEntity ne)
+        {
+            // Skip if nothing dirty
+            var mask = 0u;
+            if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Transform;
+            if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Health;
+            if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Movement;
+            if (ne.Local.GetComponent<BulletHealthComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.BulletHealth;
+            if (ne.Local.GetComponent<DrawComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Draw;
+
+            if (mask == 0) return;   // nothing to send
+
+            byte[] payload = NetworkEntity.EncodeEntity(ne, 2); // MessageType 2 = Update
+            SendRaw(payload);
+        }
+
+        /// <summary>Returns the NetworkEntity that owns <paramref name="entity"/> or null.</summary>
+        public NetworkEntity? GetNetworkEntity(Entity entity)
+        {
+            foreach (var kv in networkEntities)
+            {
+                if (kv.Value.Local == entity) return kv.Value;
+            }
+            return null;
         }
     }
 }
