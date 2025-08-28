@@ -51,6 +51,16 @@
             return _components.TryGetValue(typeof(T), out var component) ? (T)component : null;
         }
 
+        public bool HasDirtyComponent()
+        {
+            foreach (var component in _components.Values)
+            {
+                if (component.Dirty) return true;
+            }
+
+            return false;
+        }
+
         public void Update()
         {
             // Update all updatable components

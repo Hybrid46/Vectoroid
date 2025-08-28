@@ -47,24 +47,19 @@ namespace NetworkComponentSystem
         {
             switch (_typeID)
             {
-                case 0:
-                    DrawShip();
-                    break;
-                case 1:
-                    DrawBullet();
-                    break;
-                default:
-                    break;
+                case 0: DrawShip(); break;
+                case 1: DrawBullet(); break;
+                default: break;
             }
         }
 
         public static void Encode(BinaryWriter bw, DrawComponent d)
         {
             bw.Write(d.TypeId);
-            bw.Write(d._color.R);
-            bw.Write(d._color.G);
-            bw.Write(d._color.B);
-            bw.Write(d._color.A);
+            bw.Write((float)d._color.R);
+            bw.Write((float)d._color.G);
+            bw.Write((float)d._color.B);
+            bw.Write((float)d._color.A);
         }
 
         public static void Decode(BinaryReader br, DrawComponent d)

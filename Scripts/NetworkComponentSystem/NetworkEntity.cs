@@ -1,4 +1,7 @@
-﻿using System.Numerics;
+﻿// ─────────────────────────────────────────────────────────────────────
+// NetworkEntity.cs – packet handling
+// ─────────────────────────────────────────────────────────────────────
+using System.Numerics;
 using Raylib_cs;
 using static NetworkComponentSystem.Component;
 
@@ -133,6 +136,8 @@ namespace NetworkComponentSystem
                     if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Decode(br, ne.Local.GetComponent<Transform>());
                     if ((mask & (uint)ComponentBits.Health) != 0) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
                     if ((mask & (uint)ComponentBits.Movement) != 0) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
+                    if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
+                    if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
 
                     break;
             }
