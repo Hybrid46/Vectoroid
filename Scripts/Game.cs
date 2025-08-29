@@ -126,20 +126,15 @@ namespace SpaceShooterMultiplayer
             NetworkEntity ne = new NetworkEntity(id, playerId, e);
             net.networkEntities.Add(id, ne);
 
-            // Mark all components dirty so the first Add packet contains all data
             transform.MarkDirty();
             e.GetComponent<HealthComponent>().MarkDirty();
             e.GetComponent<MovementComponent>().MarkDirty();
             e.GetComponent<DrawComponent>().MarkDirty();
 
-            // *** Host only: send the new entity to all clients ***            
-            if (net.IsHost)
-            {
-                net.SendAddEntity(ne);
-            }
+            net.SendAddEntity(ne);
         }
 
-        private NetworkEntity CreateBullet()
+        private void CreateBullet()
         {
             Vector2 pos = localPlayer.transform.Position + localPlayer.transform.forward * 30f;
             Vector2 vel = localPlayer.transform.forward * 12f;
@@ -161,13 +156,12 @@ namespace SpaceShooterMultiplayer
             NetworkEntity ne = new NetworkEntity(id, playerId, e);
             net.networkEntities.Add(id, ne);
 
-            // Mark all components dirty
             bulletTransform.MarkDirty();
             e.GetComponent<BulletHealthComponent>().MarkDirty();
             e.GetComponent<MovementComponent>().MarkDirty();
             e.GetComponent<DrawComponent>().MarkDirty();
 
-            return ne;
+            net.SendAddEntity(ne);
         }
 
         private void DrawMenu()
@@ -205,7 +199,7 @@ namespace SpaceShooterMultiplayer
             if (Raylib.IsKeyPressed(KeyboardKey.Space) && bulletCooldown == 0)
             {
                 // *** Send the new bullet to the host ***
-                net.SendAddEntity(CreateBullet());
+                CreateBullet();
 
                 bulletCooldown = 20;
             }
@@ -224,6 +218,13 @@ namespace SpaceShooterMultiplayer
                     if (ne.playerId == net.LocalPlayerId)
                         net.SendUpdateEntity(ne);
                 }
+            }
+
+            // Synchronise local entity list with networkEntities
+            foreach (var ne in net.networkEntities.Values)
+            {
+                if (!entities.Contains(ne.Local))
+                    entities.Add(ne.Local);
             }
         }
 

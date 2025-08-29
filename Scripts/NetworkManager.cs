@@ -171,6 +171,7 @@ namespace SpaceShooterMultiplayer
                     // process all complete packets in the buffer
                     var b = clientBuffers[c];
                     ProcessBuffer(c, ref b, true);
+                    clientBuffers[c] = b;
                 }
             }
             else

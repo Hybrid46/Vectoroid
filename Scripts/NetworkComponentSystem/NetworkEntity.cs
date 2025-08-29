@@ -85,39 +85,59 @@ namespace NetworkComponentSystem
             switch (msgType)
             {
                 case 0:   // Add
-                    ne = new NetworkEntity(id, playerId, new Entity());
-
-                    if ((mask & (uint)ComponentBits.Transform) != 0)
+                          // **new: check if we already have this entity**
+                    if (networkEntities.TryGetValue(id, out ne))
                     {
-                        Transform transform = ne.Local.AddComponent(new Transform());
-                        Transform.Decode(br, transform);
+                        // entity already exists – treat this as an update
+                        // (decode only the components that are present)
+                        if ((mask & (uint)ComponentBits.Transform) != 0)
+                            Transform.Decode(br, ne.Local.GetComponent<Transform>());
+                        if ((mask & (uint)ComponentBits.Health) != 0)
+                            HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
+                        if ((mask & (uint)ComponentBits.Movement) != 0)
+                            MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
+                        if ((mask & (uint)ComponentBits.BulletHealth) != 0)
+                            BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
+                        if ((mask & (uint)ComponentBits.Draw) != 0)
+                            DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
                     }
-
-                    if ((mask & (uint)ComponentBits.Health) != 0)
+                    else
                     {
-                        HealthComponent health = ne.Local.AddComponent(new HealthComponent(100));
-                        HealthComponent.Decode(br, health);
-                    }
+                        // no existing entity – create a new one
+                        ne = new NetworkEntity(id, playerId, new Entity());
 
-                    if ((mask & (uint)ComponentBits.Movement) != 0)
-                    {
-                        MovementComponent movement = ne.Local.AddComponent(new MovementComponent(Vector2.Zero, 0f));
-                        MovementComponent.Decode(br, movement);
-                    }
+                        if ((mask & (uint)ComponentBits.Transform) != 0)
+                        {
+                            Transform transform = ne.Local.AddComponent(new Transform());
+                            Transform.Decode(br, transform);
+                        }
 
-                    if ((mask & (uint)ComponentBits.BulletHealth) != 0)
-                    {
-                        BulletHealthComponent bullet = ne.Local.AddComponent(new BulletHealthComponent(100));
-                        BulletHealthComponent.Decode(br, bullet);
-                    }
+                        if ((mask & (uint)ComponentBits.Health) != 0)
+                        {
+                            HealthComponent health = ne.Local.AddComponent(new HealthComponent(100));
+                            HealthComponent.Decode(br, health);
+                        }
 
-                    if ((mask & (uint)ComponentBits.Draw) != 0)
-                    {
-                        DrawComponent draw = ne.Local.AddComponent(new DrawComponent(0, Color.White));
-                        DrawComponent.Decode(br, draw);
-                    }
+                        if ((mask & (uint)ComponentBits.Movement) != 0)
+                        {
+                            MovementComponent movement = ne.Local.AddComponent(new MovementComponent(Vector2.Zero, 0f));
+                            MovementComponent.Decode(br, movement);
+                        }
 
-                    networkEntities.Add(id, ne);
+                        if ((mask & (uint)ComponentBits.BulletHealth) != 0)
+                        {
+                            BulletHealthComponent bullet = ne.Local.AddComponent(new BulletHealthComponent(100));
+                            BulletHealthComponent.Decode(br, bullet);
+                        }
+
+                        if ((mask & (uint)ComponentBits.Draw) != 0)
+                        {
+                            DrawComponent draw = ne.Local.AddComponent(new DrawComponent(0, Color.White));
+                            DrawComponent.Decode(br, draw);
+                        }
+
+                        networkEntities.Add(id, ne);
+                    }
                     break;
 
                 case 1:   // Destroy
