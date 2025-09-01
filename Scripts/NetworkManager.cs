@@ -137,6 +137,8 @@ namespace SpaceShooterMultiplayer
                     TcpClient newClient = listener.AcceptTcpClient();
                     clientConnections.Add(newClient);
                     clientBuffers[newClient] = Array.Empty<byte>();
+
+                    SendExistingEntitiesToClient(newClient);
                 }
             }
 
@@ -333,6 +335,18 @@ namespace SpaceShooterMultiplayer
 
             byte[] payload = NetworkEntity.EncodeEntity(ne, 2); // MessageType 2 = Update
             SendRaw(payload);
+        }
+
+        private void SendExistingEntitiesToClient(TcpClient client)
+        {
+            foreach (var ne in networkEntities.Values)
+            {
+                byte[] payload = NetworkEntity.EncodeEntity(ne, 0); // MessageType 0 = Add
+                var packet = new byte[4 + payload.Length];
+                Buffer.BlockCopy(BitConverter.GetBytes(payload.Length), 0, packet, 0, 4);
+                Buffer.BlockCopy(payload, 0, packet, 4, payload.Length);
+                client.GetStream().Write(packet, 0, packet.Length);
+            }
         }
 
         /// <summary>Returns the NetworkEntity that owns <paramref name="entity"/> or null.</summary>

@@ -156,8 +156,15 @@ namespace NetworkComponentSystem
                     if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Decode(br, ne.Local.GetComponent<Transform>());
                     if ((mask & (uint)ComponentBits.Health) != 0) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
                     if ((mask & (uint)ComponentBits.Movement) != 0) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
-                    if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
                     if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
+                    if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
+
+                    // reset dirty flags after an update
+                    ne.Local.GetComponent<Transform>()?.ResetDirty();
+                    ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
+                    ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
+                    ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
+                    ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
 
                     break;
             }

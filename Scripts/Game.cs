@@ -185,7 +185,6 @@ namespace SpaceShooterMultiplayer
         /* --------------------------------------------------------------------- */
         private void UpdatePlaying()
         {
-            // Host may play even with no players connected
             if (!net.IsConnected && !net.IsHost)
             {
                 state = State.Menu;
@@ -198,33 +197,43 @@ namespace SpaceShooterMultiplayer
 
             if (Raylib.IsKeyPressed(KeyboardKey.Space) && bulletCooldown == 0)
             {
-                // *** Send the new bullet to the host ***
                 CreateBullet();
-
                 bulletCooldown = 20;
             }
 
-            // *** Send local updates (only dirty components) ***
-            foreach (var ne in net.networkEntities.Values)
+            /* ----- SEND LOCAL UPDATES ----- */
+            foreach (NetworkEntity ne in net.networkEntities.Values)
             {
                 if (net.IsHost)
                 {
-                    // host sends all dirty entities
+                    // Host sends all dirty entities
                     if (ne.Local.HasDirtyComponent()) net.SendUpdateEntity(ne);
                 }
                 else
                 {
-                    // client sends updates only for its own player
+                    // Client sends updates only for its own player
                     if (ne.playerId == net.LocalPlayerId)
                         net.SendUpdateEntity(ne);
                 }
             }
 
-            // Synchronise local entity list with networkEntities
-            foreach (var ne in net.networkEntities.Values)
+            /* ----- UPDATE ENTITIES ----- */
+            if (net.IsHost)
             {
-                if (!entities.Contains(ne.Local))
-                    entities.Add(ne.Local);
+                // Host: update every entity
+                foreach (Entity entity in entities)
+                    entity.Update();
+            }
+            else
+            {
+                // Client: update only the locally‑owned entity
+                localPlayer?.Update();
+            }
+
+            // Synchronise local entity list with networkEntities
+            foreach (NetworkEntity ne in net.networkEntities.Values)
+            {
+                if (!entities.Contains(ne.Local)) entities.Add(ne.Local);
             }
         }
 

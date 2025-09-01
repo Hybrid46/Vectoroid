@@ -22,9 +22,7 @@ namespace NetworkComponentSystem
 
             if (IsThrusting)
             {
-                float rad = MathF.PI * transform.Rotation / 180f;
-                Vector2 dir = new Vector2(MathF.Sin(rad), -MathF.Cos(rad));
-                velocity += dir * acceleration;
+                velocity += transform.forward * acceleration;
             }
 
             transform.Position += velocity;
