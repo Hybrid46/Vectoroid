@@ -85,26 +85,30 @@ namespace NetworkComponentSystem
             switch (msgType)
             {
                 case 0:   // Add
-                          // Check if we already have this entity
                     if (networkEntities.TryGetValue(id, out ne))
                     {
-                        // entity already exists – treat this as an update
-                        if ((mask & (uint)ComponentBits.Transform) != 0 && ne.Local.GetComponent<Transform>() != null) Transform.Decode(br, ne.Local.GetComponent<Transform>());
-                        if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
-                        if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
-                        if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
-                        if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
+                        // Entity exists, update it
+                        if ((mask & (uint)ComponentBits.Transform) != 0 && ne.Local.GetComponent<Transform>() != null)
+                            Transform.Decode(br, ne.Local.GetComponent<Transform>());
+                        if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null)
+                            HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
+                        if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null)
+                            MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
+                        if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null)
+                            BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
+                        if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null)
+                            DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
                     }
                     else
                     {
-                        // no existing entity – create a new one
+                        // Create new entity
                         ne = new NetworkEntity(id, playerId, new Entity());
 
+                        // Always add a Transform component
+                        Transform transform = ne.Local.AddComponent(new Transform());
+
                         if ((mask & (uint)ComponentBits.Transform) != 0)
-                        {
-                            Transform transform = ne.Local.AddComponent(new Transform());
                             Transform.Decode(br, transform);
-                        }
 
                         if ((mask & (uint)ComponentBits.Health) != 0)
                         {

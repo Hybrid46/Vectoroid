@@ -9,22 +9,35 @@ namespace SpaceShooterMultiplayer
 
         private static void Main()
         {
-            // Create the OpenGL context
-            Raylib.SetConfigFlags(ConfigFlags.VSyncHint |
-                                 ConfigFlags.Msaa4xHint);
+            Raylib.SetConfigFlags(ConfigFlags.VSyncHint | ConfigFlags.Msaa4xHint);
             Raylib.InitWindow(WindowWidth, WindowHeight, "Space Shooter Multiplayer");
             Raylib.SetTargetFPS(60);
 
             var network = new NetworkManager();
             var game = new Game(network);
 
+            double lastTime = Raylib.GetTime();
+            double accumulator = 0.0;
+            double frameTime = 1.0 / 60.0; // 60 FPS
+
             // Main loop
             while (!Raylib.WindowShouldClose())
             {
-                // Poll network *before* we update game objects
-                network.Poll();
+                double currentTime = Raylib.GetTime();
+                double deltaTime = currentTime - lastTime;
+                lastTime = currentTime;
 
-                game.Update();
+                accumulator += deltaTime;
+
+                while (accumulator >= frameTime)
+                {
+                    // Poll network before we update game objects
+                    network.Poll();
+                    game.Update();
+
+                    accumulator -= frameTime;
+                }
+
                 game.Draw();
             }
 

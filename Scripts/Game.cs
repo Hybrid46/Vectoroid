@@ -115,7 +115,6 @@ namespace SpaceShooterMultiplayer
             transform.Position = new Vector2(500, 350);
 
             e.AddComponent(new HealthComponent(100));
-            e.AddComponent(new MovementComponent(Vector2.Zero, 0.1f));
             e.AddComponent(new DrawComponent(0, Color.Green));
             e.AddComponent(new ControllerComponent());
 
@@ -128,7 +127,6 @@ namespace SpaceShooterMultiplayer
 
             transform.MarkDirty();
             e.GetComponent<HealthComponent>().MarkDirty();
-            e.GetComponent<MovementComponent>().MarkDirty();
             e.GetComponent<DrawComponent>().MarkDirty();
 
             net.SendAddEntity(ne);
@@ -216,24 +214,35 @@ namespace SpaceShooterMultiplayer
             }
 
             // Synchronise local entity list with networkEntities
+            // First, remove entities that are no longer in networkEntities
+            for (int i = entities.Count - 1; i >= 0; i--)
+            {
+                Entity entity = entities[i];
+                bool found = false;
+
+                foreach (NetworkEntity ne in net.networkEntities.Values)
+                {
+                    if (ne.Local == entity)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found && entity != localPlayer)
+                {
+                    entities.RemoveAt(i);
+                }
+            }
+
+            // Then add new entities
             foreach (NetworkEntity ne in net.networkEntities.Values)
             {
                 if (!entities.Contains(ne.Local))
+                {
                     entities.Add(ne.Local);
+                }
             }
-
-            // With proper synchronization that also handles removal:
-            var entitiesToAdd = net.networkEntities.Values
-                .Where(ne => !entities.Contains(ne.Local))
-                .Select(ne => ne.Local)
-                .ToList();
-
-            var entitiesToRemove = entities
-                .Where(e => !net.networkEntities.Values.Any(ne => ne.Local == e))
-                .ToList();
-
-            entities.AddRange(entitiesToAdd);
-            entitiesToRemove.ForEach(e => entities.Remove(e));
         }
 
         private void HandleEntites()
