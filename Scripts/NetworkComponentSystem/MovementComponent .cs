@@ -37,7 +37,7 @@ namespace NetworkComponentSystem
             }
 
             // Decay to zero and destroy when minimum speed is reached
-            if (_shouldDecayWhenZeroSpeed && Math.Abs(_speed) <= float.Epsilon)
+            if (_shouldDecayWhenZeroSpeed && Math.Abs(_speed) < float.Epsilon)
             {
                 Entity.Destroy();
             }

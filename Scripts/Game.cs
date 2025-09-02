@@ -201,7 +201,6 @@ namespace SpaceShooterMultiplayer
                 bulletCooldown = 20;
             }
 
-            /* ----- SEND LOCAL UPDATES ----- */
             foreach (NetworkEntity ne in net.networkEntities.Values)
             {
                 if (net.IsHost)
@@ -212,29 +211,29 @@ namespace SpaceShooterMultiplayer
                 else
                 {
                     // Client sends updates only for its own player
-                    if (ne.playerId == net.LocalPlayerId)
-                        net.SendUpdateEntity(ne);
+                    if (ne.playerId == net.LocalPlayerId)  net.SendUpdateEntity(ne);
                 }
-            }
-
-            /* ----- UPDATE ENTITIES ----- */
-            if (net.IsHost)
-            {
-                // Host: update every entity
-                foreach (Entity entity in entities)
-                    entity.Update();
-            }
-            else
-            {
-                // Client: update only the locally‑owned entity
-                localPlayer?.Update();
             }
 
             // Synchronise local entity list with networkEntities
             foreach (NetworkEntity ne in net.networkEntities.Values)
             {
-                if (!entities.Contains(ne.Local)) entities.Add(ne.Local);
+                if (!entities.Contains(ne.Local))
+                    entities.Add(ne.Local);
             }
+
+            // With proper synchronization that also handles removal:
+            var entitiesToAdd = net.networkEntities.Values
+                .Where(ne => !entities.Contains(ne.Local))
+                .Select(ne => ne.Local)
+                .ToList();
+
+            var entitiesToRemove = entities
+                .Where(e => !net.networkEntities.Values.Any(ne => ne.Local == e))
+                .ToList();
+
+            entities.AddRange(entitiesToAdd);
+            entitiesToRemove.ForEach(e => entities.Remove(e));
         }
 
         private void HandleEntites()

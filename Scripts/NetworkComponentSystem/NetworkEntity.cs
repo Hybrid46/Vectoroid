@@ -85,21 +85,15 @@ namespace NetworkComponentSystem
             switch (msgType)
             {
                 case 0:   // Add
-                          // **new: check if we already have this entity**
+                          // Check if we already have this entity
                     if (networkEntities.TryGetValue(id, out ne))
                     {
                         // entity already exists – treat this as an update
-                        // (decode only the components that are present)
-                        if ((mask & (uint)ComponentBits.Transform) != 0)
-                            Transform.Decode(br, ne.Local.GetComponent<Transform>());
-                        if ((mask & (uint)ComponentBits.Health) != 0)
-                            HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
-                        if ((mask & (uint)ComponentBits.Movement) != 0)
-                            MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
-                        if ((mask & (uint)ComponentBits.BulletHealth) != 0)
-                            BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
-                        if ((mask & (uint)ComponentBits.Draw) != 0)
-                            DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
+                        if ((mask & (uint)ComponentBits.Transform) != 0 && ne.Local.GetComponent<Transform>() != null) Transform.Decode(br, ne.Local.GetComponent<Transform>());
+                        if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
+                        if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
+                        if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
+                        if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
                     }
                     else
                     {
@@ -153,11 +147,11 @@ namespace NetworkComponentSystem
                     if (!networkEntities.TryGetValue(id, out ne)) return;   // stale packet, ignore
 
                     // decode each component that is present in the mask
-                    if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Decode(br, ne.Local.GetComponent<Transform>());
-                    if ((mask & (uint)ComponentBits.Health) != 0) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
-                    if ((mask & (uint)ComponentBits.Movement) != 0) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
-                    if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
-                    if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
+                    if ((mask & (uint)ComponentBits.Transform) != 0 && ne.Local.GetComponent<Transform>() != null) Transform.Decode(br, ne.Local.GetComponent<Transform>());
+                    if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
+                    if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
+                    if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
+                    if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
 
                     // reset dirty flags after an update
                     ne.Local.GetComponent<Transform>()?.ResetDirty();

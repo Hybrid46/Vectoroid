@@ -216,7 +216,7 @@ namespace SpaceShooterMultiplayer
             while (buffer.Length >= 4)
             {
                 int packetLen = BitConverter.ToInt32(buffer, 0);
-                if (buffer.Length < 4 + packetLen) break;   // incomplete packet
+                if (packetLen <= 0 || buffer.Length < 4 + packetLen) break;
 
                 // slice payload
                 var payload = new byte[packetLen];
@@ -324,7 +324,7 @@ namespace SpaceShooterMultiplayer
         public void SendUpdateEntity(NetworkEntity ne)
         {
             // Skip if nothing dirty
-            var mask = 0u;
+            uint mask = 0u;
             if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Transform;
             if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Health;
             if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Movement;
