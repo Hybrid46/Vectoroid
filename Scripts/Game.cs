@@ -249,20 +249,23 @@ namespace SpaceShooterMultiplayer
         {
             Stack<Entity> entitiesToRemove = new Stack<Entity>();
 
-            foreach (Entity entity in entities)
+            foreach (var ne in net.networkEntities.Values)
             {
-                entity.Update();
-                if (entity.destroy) entitiesToRemove.Push(entity);
+                bool shouldUpdate = net.IsHost || ne.playerId == net.LocalPlayerId; // TODO -> only the host should update! the local player should send their inputs?
+
+                if (shouldUpdate)
+                {
+                    ne.Local.Update();
+                    if (ne.Local.destroy) entitiesToRemove.Push(ne.Local);
+                }
             }
 
-            //Remove dead entites
             while (entitiesToRemove.Count > 0)
             {
                 Entity entity = entitiesToRemove.Pop();
                 entities.Remove(entity);
                 Console.WriteLine($"Removed entity: {entity}");
 
-                // Find the corresponding NetworkEntity and send a destroy packet
                 var ne = net.GetNetworkEntity(entity);
                 if (ne != null)
                 {
@@ -271,6 +274,8 @@ namespace SpaceShooterMultiplayer
                 }
             }
         }
+
+
 
         private void DrawPlaying()
         {

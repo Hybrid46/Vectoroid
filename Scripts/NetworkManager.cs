@@ -339,15 +339,13 @@ namespace SpaceShooterMultiplayer
 
         private void SendExistingEntitiesToClient(TcpClient client)
         {
+            // Send a full Add‑packet for every existing entity.
             foreach (var ne in networkEntities.Values)
             {
-                byte[] payload = NetworkEntity.EncodeEntity(ne, 0); // MessageType 0 = Add
-                var packet = new byte[4 + payload.Length];
-                Buffer.BlockCopy(BitConverter.GetBytes(payload.Length), 0, packet, 0, 4);
-                Buffer.BlockCopy(payload, 0, packet, 4, payload.Length);
-                client.GetStream().Write(packet, 0, packet.Length);
+                SendAddEntity(ne);
             }
         }
+
 
         /// <summary>Returns the NetworkEntity that owns <paramref name="entity"/> or null.</summary>
         public NetworkEntity? GetNetworkEntity(Entity entity)

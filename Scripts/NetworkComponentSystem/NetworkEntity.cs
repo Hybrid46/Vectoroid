@@ -38,14 +38,28 @@ namespace NetworkComponentSystem
             bw.Write(c);
             bw.Write(d);
 
+            // For Add‑messages we always include all components
             var mask = 0u;
-            if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)ComponentBits.Transform;
-            if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Health;
-            if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Movement;
-            if (ne.Local.GetComponent<BulletHealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.BulletHealth;
-            if (ne.Local.GetComponent<DrawComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Draw;
 
-            bw.Write(mask);                          // ComponentMask
+            if (MessageType == 0)          // Add
+            {
+                if (ne.Local.GetComponent<Transform>() != null) mask |= (uint)ComponentBits.Transform;
+                if (ne.Local.GetComponent<HealthComponent>() != null) mask |= (uint)ComponentBits.Health;
+                if (ne.Local.GetComponent<MovementComponent>() != null) mask |= (uint)ComponentBits.Movement;
+                if (ne.Local.GetComponent<BulletHealthComponent>() != null) mask |= (uint)ComponentBits.BulletHealth;
+                if (ne.Local.GetComponent<DrawComponent>() != null) mask |= (uint)ComponentBits.Draw;
+            }
+            else                            // Update / Destroy
+            {
+                if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)ComponentBits.Transform;
+                if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Health;
+                if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Movement;
+                if (ne.Local.GetComponent<BulletHealthComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.BulletHealth;
+                if (ne.Local.GetComponent<DrawComponent>()?.Dirty ?? false) mask |= (uint)ComponentBits.Draw;
+            }
+            // ------------------------------------------------------------------
+
+            bw.Write(mask);
 
             // Encode each dirty component *in the order of the mask*
             if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Encode(bw, ne.Local.GetComponent<Transform>());
@@ -54,15 +68,19 @@ namespace NetworkComponentSystem
             if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Encode(bw, ne.Local.GetComponent<BulletHealthComponent>());
             if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Encode(bw, ne.Local.GetComponent<DrawComponent>());
 
-            // Reset dirty flags
-            ne.Local.GetComponent<Transform>()?.ResetDirty();
-            ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
-            ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
-            ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
-            ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
+            // Reset dirty flags only for Update packets (Add packets are already clean)
+            if (MessageType != 0)
+            {
+                ne.Local.GetComponent<Transform>()?.ResetDirty();
+                ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
+                ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
+                ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
+                ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
+            }
 
             return ms.ToArray();
         }
+
 
         public static void ProcessEntity(byte[] data, Dictionary<Guid, NetworkEntity> networkEntities)
         {
