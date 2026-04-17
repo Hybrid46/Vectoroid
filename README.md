@@ -92,22 +92,22 @@ NetworkComponentSystem/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    SERVER (HOST)                          │
+│                    SERVER (HOST)                        │
 │  ┌───────────────────────────────────────────────────┐  │
-│  │  Runs all physics & game logic                     │  │
-│  │  Authoritative source of truth                      │  │
-│  │  Sends position data only to clients                │  │
+│  │  Runs all physics & game logic                    │  │
+│  │  Authoritative source of truth                    │  │
+│  │  Sends position data only to clients              │  │
 │  └───────────────────────────────────────────────────┘  │
-│                              ↓                            │
-│                📦 NETWORK PACKETS                         │
-│              (Transform + Health + Draw)                  │
-│                              ↓                            │
-│              ┌──────────────────────────────────────┐    │
-│              │           CLIENTS (GHOSTS)           │    │
-│              │  - Apply received positions          │    │
-│              │  - No local physics                   │    │
-│              │  - Interpolate/lerp for smoothness   │    │
-│              └──────────────────────────────────────┘    │
+│                              ↓                          │
+│                     NETWORK PACKETS                     │
+│              (Transform + Health + Draw)                │
+│                              ↓                          │
+│              ┌──────────────────────────────────────┐   │
+│              │           CLIENTS (GHOSTS)           │   │
+│              │  - Apply received positions          │   │
+│              │  - No local physics                  │   │
+│              │  - Interpolate/lerp for smoothness   │   │
+│              └──────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -222,7 +222,7 @@ public void ReceiveEntityUpdate(byte[] data)
 
 ### Gameplay Overview
 
-![Gameplay Screenshot 1](screenshot1.png)
+![Gameplay Screenshot 1](screenshot.png)
 
 > *Screenshot showing multiplayer gameplay with multiple ships and bullets*
 
