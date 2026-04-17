@@ -36,19 +36,19 @@
 ```
 NetworkComponentSystem/
 ├── NetworkComponentSystem/
-│   ├── Component.cs          # Base component class with flags
-│   ├── Entity.cs             # Entity with component caching
-│   ├── NetworkEntity.cs      # Network packet handling
-│   ├── Transform.cs          # Position/rotation/scale component
-│   ├── HealthComponent.cs    # Base health component
-│   ├── BulletHealthComponent.cs  # Bullets with DoT
-│   ├── MovementComponent.cs  # Velocity/acceleration physics
-│   ├── DrawComponent.cs      # Sprite drawing
-│   ├── ControllerComponent.cs  # User input handling
-│   └── IUpdatable.cs         # Update interface
+│   ├── Component.cs                # Base component class with flags
+│   ├── Entity.cs                   # Entity with component caching
+│   ├── NetworkEntity.cs            # Network packet handling
+│   ├── Transform.cs                # Position/rotation/scale component
+│   ├── HealthComponent.cs          # Base health component
+│   ├── BulletHealthComponent.cs    # Bullets with DoT
+│   ├── MovementComponent.cs        # Velocity/acceleration physics
+│   ├── DrawComponent.cs            # Sprite drawing
+│   ├── ControllerComponent.cs      # User input handling
+│   └── IUpdatable.cs               # Update interface
 ├── Properties/
-├── GameConfig.cs             # Configuration settings
-└── Program.cs                # Main entry point
+├── GameConfig.cs                   # Configuration settings
+└── Program.cs                      # Main entry point
 ```
 
 ---
@@ -148,20 +148,20 @@ public enum ComponentBits
 ### Packet Format
 
 ```
-┌──────────┬──────────────┬─────────────────┬────────────────┬───────┐
-│Byte[0]   │Byte[1-4]    │Byte[5-8]        │Byte[9]         │Bytes  │
-│----------│-------------│-----------------│----------------│-------│
-│MessageType│PlayerId   │EntityId (Guid)  │ComponentMask   │Payload│
-└──────────┴──────────────┴─────────────────┴────────────────┴───────┘
+┌───────────┬──────────────┬─────────────────┬────────────────┬───────┐
+│Byte[0]    │Byte[1-4]     │Byte[5-8]        │Byte[9]         │Bytes  │
+│-----------│--------------│-----------------│----------------│-------│
+│MessageType│PlayerId      │EntityId (Guid)  │ComponentMask   │Payload│
+└───────────┴──────────────┴─────────────────┴────────────────┴───────┘
 ```
 
 **Message Types:**
 
-| Type | Value | Description |
-|------|-------|-------------|
-| **Add** | 0 | Add new entity with all components |
-| **Create** | 1 | Destroy entity |
-| **Update** | 2 | Update dirty components |
+| Type       | Value | Description                        |
+|------------|-------|------------------------------------|
+| **Add**    |   0   | Add new entity with all components |
+| **Create** |   1   | Destroy entity                     |
+| **Update** |   2   | Update dirty components            |
 
 ---
 
@@ -222,13 +222,13 @@ public void ReceiveEntityUpdate(byte[] data)
 
 ### Gameplay Overview
 
-![Gameplay Screenshot 1](screenshots/screenshot1.png)
+![Gameplay Screenshot 1](screenshot1.png)
 
 > *Screenshot showing multiplayer gameplay with multiple ships and bullets*
 
 ### Multiplayer Interaction
 
-![Multiplayer Screenshot 2](screenshots/screenshot2.png)
+![Multiplayer Screenshot 2](screenshot2.png)
 
 > *Screenshot showing server-authoritative synchronization in action*
 
