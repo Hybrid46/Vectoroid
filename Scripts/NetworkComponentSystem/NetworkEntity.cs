@@ -64,7 +64,6 @@ namespace NetworkComponentSystem
             // Encode each dirty component *in the order of the mask*
             if ((mask & (uint)ComponentBits.Transform) != 0) Transform.Encode(bw, ne.Local.GetComponent<Transform>());
             if ((mask & (uint)ComponentBits.Health) != 0) HealthComponent.Encode(bw, ne.Local.GetComponent<HealthComponent>());
-            if ((mask & (uint)ComponentBits.Movement) != 0) MovementComponent.Encode(bw, ne.Local.GetComponent<MovementComponent>());
             if ((mask & (uint)ComponentBits.BulletHealth) != 0) BulletHealthComponent.Encode(bw, ne.Local.GetComponent<BulletHealthComponent>());
             if ((mask & (uint)ComponentBits.Draw) != 0) DrawComponent.Encode(bw, ne.Local.GetComponent<DrawComponent>());
 
@@ -110,8 +109,6 @@ namespace NetworkComponentSystem
                             Transform.Decode(br, ne.Local.GetComponent<Transform>());
                         if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null)
                             HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
-                        if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null)
-                            MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
                         if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null)
                             BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
                         if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null)
@@ -132,12 +129,6 @@ namespace NetworkComponentSystem
                         {
                             HealthComponent health = ne.Local.AddComponent(new HealthComponent(100));
                             HealthComponent.Decode(br, health);
-                        }
-
-                        if ((mask & (uint)ComponentBits.Movement) != 0)
-                        {
-                            MovementComponent movement = ne.Local.AddComponent(new MovementComponent(Vector2.Zero, 0f));
-                            MovementComponent.Decode(br, movement);
                         }
 
                         if ((mask & (uint)ComponentBits.BulletHealth) != 0)
@@ -171,7 +162,6 @@ namespace NetworkComponentSystem
                     // decode each component that is present in the mask
                     if ((mask & (uint)ComponentBits.Transform) != 0 && ne.Local.GetComponent<Transform>() != null) Transform.Decode(br, ne.Local.GetComponent<Transform>());
                     if ((mask & (uint)ComponentBits.Health) != 0 && ne.Local.GetComponent<HealthComponent>() != null) HealthComponent.Decode(br, ne.Local.GetComponent<HealthComponent>());
-                    if ((mask & (uint)ComponentBits.Movement) != 0 && ne.Local.GetComponent<MovementComponent>() != null) MovementComponent.Decode(br, ne.Local.GetComponent<MovementComponent>());
                     if ((mask & (uint)ComponentBits.BulletHealth) != 0 && ne.Local.GetComponent<BulletHealthComponent>() != null) BulletHealthComponent.Decode(br, ne.Local.GetComponent<BulletHealthComponent>());
                     if ((mask & (uint)ComponentBits.Draw) != 0 && ne.Local.GetComponent<DrawComponent>() != null) DrawComponent.Decode(br, ne.Local.GetComponent<DrawComponent>());
 

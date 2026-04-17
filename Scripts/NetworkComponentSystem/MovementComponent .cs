@@ -44,26 +44,5 @@ namespace NetworkComponentSystem
 
             MarkDirty();
         }
-
-        public static void Encode(BinaryWriter bw, MovementComponent m)
-        {
-            bw.Write(m._direction.X);
-            bw.Write(m._direction.Y);
-            bw.Write(m._speed);
-            bw.Write(m._acceleration);
-            bw.Write(m._maxSpeed);
-            bw.Write(m._minSpeed);
-            bw.Write(m._shouldDecayWhenZeroSpeed);
-        }
-
-        public static void Decode(BinaryReader br, MovementComponent m)
-        {
-            m._direction = new Vector2(br.ReadSingle(), br.ReadSingle());
-            m._speed = br.ReadSingle();
-            m._acceleration = br.ReadSingle();
-            m._maxSpeed = br.ReadSingle();
-            m._minSpeed = br.ReadSingle();
-            m._shouldDecayWhenZeroSpeed = br.ReadBoolean();
-        }
     }
 }
