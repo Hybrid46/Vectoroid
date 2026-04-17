@@ -1,5 +1,4 @@
-﻿// RayGui.cs
-using Raylib_cs;
+﻿using Raylib_cs;
 
 namespace SpaceShooterMultiplayer
 {
