@@ -22,7 +22,7 @@
         {
             get => _currentHP;
             set
-            {;
+            {
                 if (_currentHP != value)
                 {
                     _currentHP = value;
