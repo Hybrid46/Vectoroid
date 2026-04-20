@@ -122,6 +122,26 @@ namespace SpaceShooterMultiplayer
             }
         }
 
+        private void SendRawToClient(TcpClient target, byte[] payload)
+        {
+            var packet = new byte[4 + payload.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(payload.Length), 0, packet, 0, 4);
+            Buffer.BlockCopy(payload, 0, packet, 4, payload.Length);
+
+            try
+            {
+                NetworkStream ns = target.GetStream();
+                ns.Write(packet, 0, packet.Length);
+            }
+            catch
+            {
+                // If this specific client fails, remove it
+                target.Close();
+                clientConnections.Remove(target);
+                clientBuffers.Remove(target);
+            }
+        }
+
         /* ──────────────────────────────────────────────────────────────────────
          *                               POLL
          * ────────────────────────────────────────────────────────────────────── */
@@ -251,7 +271,7 @@ namespace SpaceShooterMultiplayer
             //    (Add / Update / Destroy) and the payload.
             if (IsHost && sender != null)
             {
-                Broadcast(data, sender);
+                BroadcastPayload(data, sender);
             }
 
             // 2. Apply the packet to our local entity store.
@@ -287,6 +307,14 @@ namespace SpaceShooterMultiplayer
                     clientBuffers.Remove(c);
                 }
             }
+        }
+
+        private void BroadcastPayload(byte[] payload, TcpClient? except = null)
+        {
+            var packet = new byte[4 + payload.Length];
+            Buffer.BlockCopy(BitConverter.GetBytes(payload.Length), 0, packet, 0, 4);
+            Buffer.BlockCopy(payload, 0, packet, 4, payload.Length);
+            Broadcast(packet, except);
         }
 
         /* ──────────────────────────────────────────────────────────────────────
@@ -339,10 +367,10 @@ namespace SpaceShooterMultiplayer
 
         private void SendExistingEntitiesToClient(TcpClient client)
         {
-            // Send a full Add‑packet for every existing entity.
             foreach (var ne in networkEntities.Values)
             {
-                SendAddEntity(ne);
+                byte[] payload = NetworkEntity.EncodeEntity(ne, 0); // MessageType 0 = Add
+                SendRawToClient(client, payload);
             }
         }
 
