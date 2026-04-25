@@ -1,6 +1,6 @@
 ﻿namespace NetworkComponentSystem
 {
-    public class HealthComponent : Component
+    public class HealthComponent : Component, INetworkComponent
     {
         private int _maxHP;
         private int _currentHP;
@@ -33,6 +33,7 @@
 
         public HealthComponent(int maxHP)
         {
+            componentType = ComponentType.Health;
             MaxHP = maxHP;
             CurrentHP = maxHP;
         }
@@ -40,7 +41,6 @@
         public void TakeDamage(int amount)
         {
             CurrentHP = Math.Clamp(CurrentHP - amount, 0, MaxHP);
-            MarkDirty();
             if (CurrentHP == 0) Die();
         }
 
@@ -51,16 +51,16 @@
             Console.WriteLine($"Entity {GetHashCode()} died!");
         }
 
-        public static void Encode(BinaryWriter bw, HealthComponent h)
+        public void Encode(BinaryWriter bw)
         {
-            bw.Write(h.CurrentHP);
-            bw.Write(h.MaxHP);
+            bw.Write(CurrentHP);
+            bw.Write(MaxHP);
         }
 
-        public static void Decode(BinaryReader br, HealthComponent h)
+        public void Decode(BinaryReader br)
         {
-            h.CurrentHP = br.ReadInt32();
-            h.MaxHP = br.ReadInt32();
+            CurrentHP = br.ReadInt32();
+            MaxHP = br.ReadInt32();
         }
     }
 }

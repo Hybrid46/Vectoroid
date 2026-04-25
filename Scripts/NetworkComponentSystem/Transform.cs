@@ -2,11 +2,16 @@
 
 namespace NetworkComponentSystem
 {
-    public class Transform : Component
+    public class Transform : Component, INetworkComponent
     {
         private Vector2 _position = Vector2.Zero;
         private float _rotation = 0f;
         private float _scale = 1f;
+
+        public Transform()
+        {
+            componentType = ComponentType.Transform;
+        }
 
         public Vector2 Position
         {
@@ -56,19 +61,19 @@ namespace NetworkComponentSystem
             return dir;
         }
 
-        public static void Encode(BinaryWriter bw, Transform t)
+        public void Encode(BinaryWriter bw)
         {
-            bw.Write(t.Position.X);
-            bw.Write(t.Position.Y);
-            bw.Write(t.Rotation);
-            bw.Write(t.Scale);
+            bw.Write(Position.X);
+            bw.Write(Position.Y);
+            bw.Write(Rotation);
+            bw.Write(Scale);
         }
 
-        public static void Decode(BinaryReader br, Transform t)
+        public void Decode(BinaryReader br)
         {
-            t.Position = new Vector2(br.ReadSingle(), br.ReadSingle());
-            t.Rotation = br.ReadSingle();
-            t.Scale = br.ReadSingle();
+            Position = new Vector2(br.ReadSingle(), br.ReadSingle());
+            Rotation = br.ReadSingle();
+            Scale = br.ReadSingle();
         }
     }
 }

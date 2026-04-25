@@ -13,19 +13,21 @@
             Controller = 1 << 5,
         }
 
+        public enum ComponentType : byte
+        {
+            Transform = 0,
+            Health = 1,
+            Movement = 2,
+            BulletHealth = 3,
+            Draw = 4,
+            Controller = 5,
+        }
+
+        public ComponentType componentType { get; protected set; }
+        public uint ComponentMask => (uint)(1 << (int)componentType);
+
         public Entity Entity { get; set; }
         public bool Dirty { get; set; } = true;
-
-        public static ComponentBits ToBits<T>() where T : Component
-        {
-            if (typeof(T) == typeof(Transform)) return ComponentBits.Transform;
-            if (typeof(T) == typeof(HealthComponent)) return ComponentBits.Health;
-            if (typeof(T) == typeof(MovementComponent)) return ComponentBits.Movement;
-            if (typeof(T) == typeof(BulletHealthComponent)) return ComponentBits.BulletHealth;
-            if (typeof(T) == typeof(DrawComponent)) return ComponentBits.Draw;
-            if (typeof(T) == typeof(ControllerComponent)) return ComponentBits.Controller;
-            return ComponentBits.Transform;
-        }
 
         public void MarkDirty() => Dirty = true;
         public void ResetDirty() => Dirty = false;

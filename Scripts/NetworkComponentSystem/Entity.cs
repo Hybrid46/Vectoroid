@@ -24,6 +24,14 @@
             Console.WriteLine($"Entity {GetHashCode()} created");
         }
 
+        public IEnumerable<Component> GetDirtyComponents()
+        {
+            foreach (Component c in _components.Values)
+            {
+                if (c.Dirty && c is INetworkComponent) yield return c;
+            }
+        }
+
         public T AddComponent<T>(T component) where T : Component
         {
             component.Entity = this;
@@ -56,7 +64,7 @@
         {
             foreach (var component in _components.Values)
             {
-                if (component.Dirty) return true;
+                if (component.Dirty && component is INetworkComponent) return true;
             }
 
             return false;

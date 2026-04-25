@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace NetworkComponentSystem
 {
-    public class DrawComponent : Component
+    public class DrawComponent : Component, INetworkComponent
     {
         private int _typeID; // 0 = ship, 1 = bullet -> later it can be the texture ID for sprite drawing
         private Color _color = Color.White;
@@ -39,6 +39,7 @@ namespace NetworkComponentSystem
 
         public DrawComponent(int typeId, Color color)
         {
+            componentType = ComponentType.Draw;
             TypeId = typeId;
             Color = color;
         }
@@ -53,19 +54,19 @@ namespace NetworkComponentSystem
             }
         }
 
-        public static void Encode(BinaryWriter bw, DrawComponent d)
+        public void Encode(BinaryWriter bw)
         {
-            bw.Write(d.TypeId);
-            bw.Write((float)d._color.R);
-            bw.Write((float)d._color.G);
-            bw.Write((float)d._color.B);
-            bw.Write((float)d._color.A);
+            bw.Write(TypeId);
+            bw.Write((float)_color.R);
+            bw.Write((float)_color.G);
+            bw.Write((float)_color.B);
+            bw.Write((float)_color.A);
         }
 
-        public static void Decode(BinaryReader br, DrawComponent d)
+        public void Decode(BinaryReader br)
         {
-            d.TypeId = br.ReadInt32();
-            d.Color = new Color(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+            TypeId = br.ReadInt32();
+            Color = new Color(br.ReadSingle(), br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
         }
 
         private void DrawBullet()

@@ -15,6 +15,7 @@ namespace NetworkComponentSystem
                                 float maxSpeed = float.MaxValue, float minSpeed = 0f,
                                 bool shouldDecay = false)
         {
+            componentType = ComponentType.Movement;
             _direction = direction;
             _speed = initialSpeed;
             _acceleration = acceleration;
@@ -41,8 +42,6 @@ namespace NetworkComponentSystem
             {
                 Entity.Destroy();
             }
-
-            MarkDirty();
         }
     }
 }
