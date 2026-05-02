@@ -1,22 +1,19 @@
-﻿namespace NetworkComponentSystem
+﻿using System.Numerics;
+using static NetworkComponentSystem.Component;
+
+namespace NetworkComponentSystem
 {
     public class Entity
     {
         private readonly Dictionary<Type, Component> _components = new();
-        private Transform _cachedTransform;
-        private HealthComponent _cachedHealthComponent;
-        private BulletHealthComponent _cachedBulletHealthComponent;
-        private MovementComponent _cachedMovementComponent;
-        private DrawComponent _cachedDrawComponent;
-        private ControllerComponent _cachedControllerComponent;
 
         public bool destroy { get; private set; } = false;
 
-        public Transform transform => _cachedTransform;
-        public HealthComponent healthComponent => _cachedHealthComponent;
-        public MovementComponent movementComponent => _cachedMovementComponent;
-        public DrawComponent drawComponent => _cachedDrawComponent;
-        public ControllerComponent controllerComponent => _cachedControllerComponent;
+        public Transform transform => GetComponent<Transform>();
+        public HealthComponent healthComponent => GetComponent<HealthComponent>();
+        public MovementComponent movementComponent => GetComponent<MovementComponent>();
+        public DrawComponent drawComponent => GetComponent<DrawComponent>();
+        public ControllerComponent controllerComponent => GetComponent<ControllerComponent>();
 
         public Entity()
         {
@@ -37,28 +34,15 @@
             component.Entity = this;
             _components[typeof(T)] = component;
 
-            // Update cache
-            if (component is Transform transform) _cachedTransform = transform;
-            if (component is HealthComponent healthComponent) _cachedHealthComponent = healthComponent;
-            if (component is BulletHealthComponent bulletHealthComponent) _cachedBulletHealthComponent = bulletHealthComponent;
-            if (component is MovementComponent movement) _cachedMovementComponent = movement;
-            if (component is DrawComponent draw) _cachedDrawComponent = draw;
-            if (component is ControllerComponent control) _cachedControllerComponent = control;
-
             return component;
         }
 
         public T GetComponent<T>() where T : Component
         {
-            if (typeof(T) == typeof(Transform)) return _cachedTransform as T;
-            if (typeof(T) == typeof(HealthComponent)) return _cachedHealthComponent as T;
-            if (typeof(T) == typeof(BulletHealthComponent)) return _cachedBulletHealthComponent as T;
-            if (typeof(T) == typeof(MovementComponent)) return _cachedMovementComponent as T;
-            if (typeof(T) == typeof(DrawComponent)) return _cachedDrawComponent as T;
-            if (typeof(T) == typeof(ControllerComponent)) return _cachedControllerComponent as T;
-
             return _components.TryGetValue(typeof(T), out var component) ? (T)component : null;
         }
+
+        public bool HasComponent<T>() where T : Component => _components.ContainsKey(typeof(T));
 
         public bool HasDirtyComponent()
         {
@@ -68,6 +52,26 @@
             }
 
             return false;
+        }
+
+        public uint GetDirtyMask()
+        {
+            uint mask = 0;
+
+            foreach (var comp in _components.Values)
+            {
+                if (comp.Dirty && comp is INetworkComponent) mask |= comp.ComponentMask;
+            }
+
+            return mask;
+        }
+
+        public void ResetDirtyFlags(uint mask)
+        {
+            foreach (var comp in _components.Values)
+            {
+                if ((mask & comp.ComponentMask) != 0 && comp is INetworkComponent) comp.ResetDirty();
+            }
         }
 
         public void Update()
