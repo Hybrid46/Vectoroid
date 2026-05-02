@@ -8,7 +8,7 @@ namespace SpaceShooterMultiplayer
 {
     public class Game
     {
-        private enum State { Menu, Playing }
+        private enum State { Menu, Joining, Playing }
         private State state = State.Menu;
 
         private readonly NetworkManager net;
@@ -17,7 +17,6 @@ namespace SpaceShooterMultiplayer
 
         private readonly string[] ip = new[] { "127.0.0.1" };
         private int bulletCooldown = 0;
-        int playerId;
 
         private readonly List<Star> stars = new List<Star>();
         private readonly Random rnd = new Random();
@@ -25,6 +24,13 @@ namespace SpaceShooterMultiplayer
         public Game(NetworkManager netMgr)
         {
             net = netMgr;
+
+            net.PlayerIdAssigned += OnPlayerIdAssigned;
+            net.ServerStarted += () => Console.WriteLine("Server started");
+            net.ServerStopped += () => Console.WriteLine("Server stopped");
+            net.ClientConnected += id => Console.WriteLine($"Client {id} connected");
+            net.ClientDisconnected += id => Console.WriteLine($"Client {id} disconnected");
+
             for (int i = 0; i < 200; i++)
                 stars.Add(new Star(
                     new Vector2((float)rnd.NextDouble() * 1000f,
@@ -95,17 +101,21 @@ namespace SpaceShooterMultiplayer
             if (hostClicked)
             {
                 net.Host();   // non‑blocking
-                playerId = 0;
                 CreatePlayer();
                 state = State.Playing;
             }
             else if (joinClicked)
             {
                 net.Join(ip[0]);   // blocking until connected
-                playerId = net.LocalPlayerId;
-                CreatePlayer();
-                state = State.Playing;
+                state = State.Joining;
             }
+        }
+
+        private void OnPlayerIdAssigned(int id)
+        {
+            Console.WriteLine($"Player ID [{id}] assigned → Creating player...");
+            CreatePlayer();
+            state = State.Playing;
         }
 
         private void CreatePlayer()
@@ -122,7 +132,8 @@ namespace SpaceShooterMultiplayer
             entities.Add(e);
 
             Guid id = Guid.NewGuid();
-            NetworkEntity ne = new NetworkEntity(id, playerId, e);
+            NetworkEntity ne = new NetworkEntity(id, net.LocalPlayerId, e);
+            Console.WriteLine($"Player ID [{net.LocalPlayerId}] created");
             net.networkEntities.Add(id, ne);
 
             transform.MarkDirty();
@@ -151,7 +162,7 @@ namespace SpaceShooterMultiplayer
             entities.Add(e);
 
             Guid id = Guid.NewGuid();
-            NetworkEntity ne = new NetworkEntity(id, playerId, e);
+            NetworkEntity ne = new NetworkEntity(id, net.LocalPlayerId, e);
             net.networkEntities.Add(id, ne);
 
             bulletTransform.MarkDirty();
@@ -274,8 +285,6 @@ namespace SpaceShooterMultiplayer
                 }
             }
         }
-
-
 
         private void DrawPlaying()
         {

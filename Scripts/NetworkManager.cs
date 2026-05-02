@@ -13,6 +13,17 @@ namespace SpaceShooterMultiplayer
 {
     public class NetworkManager
     {
+        // ──────────────────────────────────────────────────────────────────────
+        //                          EVENTS
+        // ──────────────────────────────────────────────────────────────────────
+        public event Action ServerStarted;
+        public event Action ServerStopped;
+        public event Action<int> ClientConnected;    // (host) new client joined
+        public event Action<int> ClientDisconnected; // (host) client left
+        public event Action<int> PlayerIdAssigned;   // (client) received ID from host
+
+        private bool _idReceived = false; // Prevent duplicate triggers
+
         private TcpClient client;            // used only by a connecting client
         private TcpListener listener;        // only used by the host
         private NetworkStream stream;        // stream for a connecting client
@@ -21,7 +32,7 @@ namespace SpaceShooterMultiplayer
         public bool IsHost { get; private set; }
         public bool IsConnected => IsHost || (stream != null && stream.CanRead && stream.CanWrite);
         public string Status { get; private set; } = "Disconnected";
-        public int LocalPlayerId { get; private set; } = -1; // 0 for host, otherwise unique hash
+        public int LocalPlayerId { get; private set; } = -1; // 0 for host
 
         // ---------- Shared data ----------
         public Dictionary<Guid, NetworkEntity> networkEntities = new Dictionary<Guid, NetworkEntity>();
@@ -36,6 +47,8 @@ namespace SpaceShooterMultiplayer
         // ---------- Local buffer for a connected client ----------
         private byte[] clientBuffer = Array.Empty<byte>();
 
+        int nextPlayerId = 1;
+
         /* ──────────────────────────────────────────────────────────────────────
          *                               HOST
          * ────────────────────────────────────────────────────────────────────── */
@@ -48,6 +61,7 @@ namespace SpaceShooterMultiplayer
                 Status = "Hosting…";
                 IsHost = true;
                 LocalPlayerId = 0;                // host id
+                ServerStarted?.Invoke();
             }
             catch (Exception ex)
             {
@@ -66,7 +80,6 @@ namespace SpaceShooterMultiplayer
                 client.Connect(IPAddress.Parse(ip), 12345); // blocking until success
                 stream = client.GetStream();
                 Status = "Connected to host!";
-                LocalPlayerId = client.Client.RemoteEndPoint.GetHashCode();
             }
             catch (Exception ex)
             {
@@ -80,9 +93,18 @@ namespace SpaceShooterMultiplayer
             {
                 stream?.Close();
                 client?.Close();
-                foreach (var c in clientConnections) c?.Close();
+
+                //TODO maybe later we will handle conenctions better and receive playerIDs, now lets use client indexes
+                int playerID = 0;
+                foreach (var c in clientConnections)
+                {
+                    ClientDisconnected?.Invoke(playerID);
+                    c?.Close();
+                    playerID++;
+                }
                 listener?.Stop();
                 Status = "Disconnected";
+                ServerStopped?.Invoke();
             }
             catch { }
         }
@@ -157,6 +179,18 @@ namespace SpaceShooterMultiplayer
                     TcpClient newClient = listener.AcceptTcpClient();
                     clientConnections.Add(newClient);
                     clientBuffers[newClient] = Array.Empty<byte>();
+
+                    int assignedId = nextPlayerId++;
+
+                    // Send ID to client immediately
+                    using MemoryStream ms = new MemoryStream();
+                    using BinaryWriter bw = new BinaryWriter(ms);
+                    bw.Write((byte)MessageType.AssignPlayerId);
+                    bw.Write(assignedId);
+                    Console.WriteLine($"Player ID [{assignedId}] sent");
+                    SendRawToClient(newClient, ms.ToArray());
+
+                    ClientConnected?.Invoke(assignedId);
 
                     SendExistingEntitiesToClient(newClient);
                 }
@@ -265,6 +299,26 @@ namespace SpaceShooterMultiplayer
          * ────────────────────────────────────────────────────────────────────── */
         private void ProcessMessage(byte[] data, TcpClient? sender)
         {
+            // Assign Pplayer ID
+            using MemoryStream ms = new MemoryStream(data);
+            using BinaryReader br = new BinaryReader(ms);
+
+            byte msgType = br.ReadByte();
+
+            if (msgType == 3) // AssignPlayerId
+            {
+                LocalPlayerId = br.ReadInt32();
+                Console.WriteLine($"Player ID [{LocalPlayerId}] assigned");
+                
+                if (!_idReceived)
+                {
+                    _idReceived = true;
+                    PlayerIdAssigned?.Invoke(LocalPlayerId);
+                }
+
+                return;
+            }
+
             // 1. If we are the host, broadcast the packet to all
             //    other clients (except the sender).  The packet is
             //    unchanged – it already contains the message type
@@ -337,7 +391,7 @@ namespace SpaceShooterMultiplayer
             // Build a packet: [byte msgType][int32 playerId][int32 guid parts][uint32 mask (0)]
             using MemoryStream ms = new MemoryStream();
             using BinaryWriter bw = new BinaryWriter(ms);
-            bw.Write((byte)1);                                 // MessageType 1 = Destroy
+            bw.Write((byte)MessageType.Destroy);
             bw.Write(ne.playerId);
             var (a, b, c, d) = GuidPacker.PackGuid(ne.id);
             bw.Write(a); bw.Write(b); bw.Write(c); bw.Write(d);
@@ -361,7 +415,7 @@ namespace SpaceShooterMultiplayer
 
             if (mask == 0) return;   // nothing to send
 
-            byte[] payload = NetworkEntity.EncodeEntity(ne, 2); // MessageType 2 = Update
+            byte[] payload = NetworkEntity.EncodeEntity(ne, MessageType.Update);
             SendRaw(payload);
         }
 
@@ -369,7 +423,7 @@ namespace SpaceShooterMultiplayer
         {
             foreach (var ne in networkEntities.Values)
             {
-                byte[] payload = NetworkEntity.EncodeEntity(ne, 0); // MessageType 0 = Add
+                byte[] payload = NetworkEntity.EncodeEntity(ne, MessageType.Add);
                 SendRawToClient(client, payload);
             }
         }

@@ -7,6 +7,14 @@ using static NetworkComponentSystem.Component;
 
 namespace NetworkComponentSystem
 {
+    public enum MessageType : byte
+    {
+        Add = 0,
+        Destroy = 1,
+        Update = 2,
+        AssignPlayerId = 3
+    }
+
     public class NetworkEntity
     {
         // unique per session
@@ -24,12 +32,12 @@ namespace NetworkComponentSystem
         }
 
         //Packet layout -> [MessageType][PlayerId][EntityId][ComponentMask][Payload]
-        internal static byte[] EncodeEntity(NetworkEntity ne, byte MessageType = (byte)2)
+        internal static byte[] EncodeEntity(NetworkEntity ne, MessageType MessageType)
         {
             using MemoryStream ms = new MemoryStream();
             using BinaryWriter bw = new BinaryWriter(ms);
 
-            bw.Write(MessageType);                   // MessageType -> 0 Add, 1 Create , 2 Update
+            bw.Write((byte)MessageType);             // MessageType
             bw.Write(ne.playerId);                   // PlayerId
 
             var (a, b, c, d) = GuidPacker.PackGuid(ne.id); // EntityId
@@ -41,7 +49,7 @@ namespace NetworkComponentSystem
             // For Add‑messages we always include all components
             var mask = 0u;
 
-            if (MessageType == 0)          // Add
+            if (MessageType == MessageType.Add)
             {
                 if (ne.Local.GetComponent<Transform>() != null) mask |= (uint)ComponentBits.Transform;
                 if (ne.Local.GetComponent<HealthComponent>() != null) mask |= (uint)ComponentBits.Health;
@@ -64,7 +72,7 @@ namespace NetworkComponentSystem
             if ((mask & (uint)ComponentBits.Draw) != 0) ne.Local.GetComponent<DrawComponent>()?.Encode(bw);
 
             // Reset dirty flags only for Update packets (Add packets are already clean)
-            if (MessageType != 0)
+            if (MessageType != MessageType.Add)
             {
                 ne.Local.GetComponent<Transform>()?.ResetDirty();
                 ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
@@ -82,7 +90,7 @@ namespace NetworkComponentSystem
             using MemoryStream ms = new MemoryStream(data);
             using BinaryReader br = new BinaryReader(ms);
 
-            byte msgType = br.ReadByte();
+            MessageType msgType = (MessageType)br.ReadByte();
             int playerId = br.ReadInt32();
 
             int a = br.ReadInt32();
@@ -97,7 +105,7 @@ namespace NetworkComponentSystem
 
             switch (msgType)
             {
-                case 0:   // Add
+                case MessageType.Add:
                     if (networkEntities.TryGetValue(id, out ne))
                     {
                         // Entity exists, update it
@@ -137,7 +145,7 @@ namespace NetworkComponentSystem
                     }
                     break;
 
-                case 1:   // Destroy
+                case MessageType.Destroy:
                     networkEntities.TryGetValue(id, out ne);
                     if (ne != null)
                     {
@@ -146,7 +154,7 @@ namespace NetworkComponentSystem
                     networkEntities.Remove(id);
                     break;
 
-                case 2:   // Update
+                case MessageType.Update:
                     if (!networkEntities.TryGetValue(id, out ne)) return;   // stale packet, ignore
 
                     // decode each component that is present in the mask
