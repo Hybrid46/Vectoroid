@@ -1,11 +1,11 @@
-﻿using System.Numerics;
-using static NetworkComponentSystem.Component;
+﻿using static NetworkComponentSystem.Component;
 
 namespace NetworkComponentSystem
 {
     public class Entity
     {
         private readonly Dictionary<Type, Component> _components = new();
+        private readonly Dictionary<Type, Component> _networkComponents = new();
 
         public bool destroy { get; private set; } = false;
 
@@ -21,11 +21,11 @@ namespace NetworkComponentSystem
             Console.WriteLine($"Entity {GetHashCode()} created");
         }
 
-        public IEnumerable<Component> GetDirtyComponents()
+        public IEnumerable<INetworkComponent> GetDirtyNetworkComponents()
         {
-            foreach (Component c in _components.Values)
+            foreach (Component c in _networkComponents.Values)
             {
-                if (c.Dirty && c is INetworkComponent) yield return c;
+                if (c.Dirty) yield return (INetworkComponent)c;
             }
         }
 
@@ -33,34 +33,54 @@ namespace NetworkComponentSystem
         {
             component.Entity = this;
             _components[typeof(T)] = component;
+            if (component is INetworkComponent) _networkComponents[typeof(T)] = component;
 
             return component;
         }
+
+        //TODO Remove component
 
         public T GetComponent<T>() where T : Component
         {
             return _components.TryGetValue(typeof(T), out var component) ? (T)component : null;
         }
 
+        public Component GetComponentByType(ComponentType type)
+        {
+            return _components.Values.FirstOrDefault(c => c.componentType == type);
+        }
+
         public bool HasComponent<T>() where T : Component => _components.ContainsKey(typeof(T));
 
         public bool HasDirtyComponent()
         {
-            foreach (var component in _components.Values)
+            foreach (var component in _networkComponents.Values)
             {
-                if (component.Dirty && component is INetworkComponent) return true;
+                if (component.Dirty) return true;
             }
 
             return false;
         }
 
-        public uint GetDirtyMask()
+        public uint GetFullNetworkMask()
         {
             uint mask = 0;
 
-            foreach (var comp in _components.Values)
+            foreach (var comp in _networkComponents.Values)
             {
-                if (comp.Dirty && comp is INetworkComponent) mask |= comp.ComponentMask;
+                mask |= comp.ComponentMask;
+            }
+
+            return mask;
+        }
+
+        public uint GetDirtyNetworkMask()
+        {
+            uint mask = 0;
+
+            foreach (var comp in _networkComponents.Values)
+            {
+                if (comp.Dirty) mask |= comp.ComponentMask;
             }
 
             return mask;
@@ -68,9 +88,9 @@ namespace NetworkComponentSystem
 
         public void ResetDirtyFlags(uint mask)
         {
-            foreach (var comp in _components.Values)
+            foreach (var comp in _networkComponents.Values)
             {
-                if ((mask & comp.ComponentMask) != 0 && comp is INetworkComponent) comp.ResetDirty();
+                if ((mask & comp.ComponentMask) != 0) comp.ResetDirty();
             }
         }
 

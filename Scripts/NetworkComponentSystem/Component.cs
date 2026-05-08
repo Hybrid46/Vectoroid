@@ -2,17 +2,6 @@
 {
     public abstract class Component
     {
-        [Flags]
-        public enum ComponentBits
-        {
-            Transform = 1 << 0,
-            Health = 1 << 1,
-            Movement = 1 << 2,
-            BulletHealth = 1 << 3,
-            Draw = 1 << 4,
-            Controller = 1 << 5,
-        }
-
         public enum ComponentType : byte
         {
             Transform = 0,

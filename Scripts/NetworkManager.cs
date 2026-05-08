@@ -405,15 +405,10 @@ namespace SpaceShooterMultiplayer
         /// </summary>
         public void SendUpdateEntity(NetworkEntity ne)
         {
-            // Skip if nothing dirty
-            uint mask = 0u;
-            if (ne.Local.GetComponent<Transform>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Transform;
-            if (ne.Local.GetComponent<HealthComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Health;
-            if (ne.Local.GetComponent<MovementComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Movement;
-            if (ne.Local.GetComponent<BulletHealthComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.BulletHealth;
-            if (ne.Local.GetComponent<DrawComponent>()?.Dirty ?? false) mask |= (uint)Component.ComponentBits.Draw;
+            uint mask = ne.Local.GetDirtyNetworkMask();
 
-            if (mask == 0) return;   // nothing to send
+            // Skip if nothing dirty
+            if (mask == 0) return;
 
             byte[] payload = NetworkEntity.EncodeEntity(ne, MessageType.Update);
             SendRaw(payload);

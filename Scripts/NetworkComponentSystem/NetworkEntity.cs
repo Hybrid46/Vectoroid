@@ -47,38 +47,37 @@ namespace NetworkComponentSystem
             bw.Write(d);
 
             // For Add‑messages we always include all components
-            var mask = 0u;
+            uint mask = 0u;
 
             if (MessageType == MessageType.Add)
             {
-                if (ne.Local.GetComponent<Transform>() != null) mask |= (uint)ComponentBits.Transform;
-                if (ne.Local.GetComponent<HealthComponent>() != null) mask |= (uint)ComponentBits.Health;
-                if (ne.Local.GetComponent<MovementComponent>() != null) mask |= (uint)ComponentBits.Movement;
-                if (ne.Local.GetComponent<BulletHealthComponent>() != null) mask |= (uint)ComponentBits.BulletHealth;
-                if (ne.Local.GetComponent<DrawComponent>() != null) mask |= (uint)ComponentBits.Draw;
+                mask = ne.Local.GetFullNetworkMask();
             }
             else                            // Update / Destroy
             {
-                foreach (Component comp in ne.Local.GetDirtyComponents()) mask |= comp.ComponentMask;
+                mask = ne.Local.GetDirtyNetworkMask();
             }
             // ------------------------------------------------------------------
 
             bw.Write(mask);
 
             // Encode each dirty component
-            if ((mask & (uint)ComponentBits.Transform) != 0) ne.Local.GetComponent<Transform>()?.Encode(bw);
-            if ((mask & (uint)ComponentBits.Health) != 0) ne.Local.GetComponent<HealthComponent>()?.Encode(bw);
-            if ((mask & (uint)ComponentBits.BulletHealth) != 0) ne.Local.GetComponent<BulletHealthComponent>()?.Encode(bw);
-            if ((mask & (uint)ComponentBits.Draw) != 0) ne.Local.GetComponent<DrawComponent>()?.Encode(bw);
+            for (byte i = 0; i <= 5; i++)
+            {
+                var type = (ComponentType)i;
+                if ((mask & (uint)(1 << i)) == 0) continue;
+
+                var comp = ne.Local.GetComponentByType(type);
+                if (comp is INetworkComponent networkComp)
+                {
+                    networkComp.Encode(bw);
+                }
+            }
 
             // Reset dirty flags only for Update packets (Add packets are already clean)
             if (MessageType != MessageType.Add)
             {
-                ne.Local.GetComponent<Transform>()?.ResetDirty();
-                ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
-                ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
-                ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
-                ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
+                ne.Local.ResetDirtyFlags(mask);
             }
 
             return ms.ToArray();
@@ -109,10 +108,7 @@ namespace NetworkComponentSystem
                     if (networkEntities.TryGetValue(id, out ne))
                     {
                         // Entity exists, update it
-                        if ((mask & (uint)ComponentBits.Transform) != 0) ne.Local.GetComponent<Transform>()?.Decode(br);
-                        if ((mask & (uint)ComponentBits.Health) != 0) ne.Local.GetComponent<HealthComponent>()?.Decode(br);
-                        if ((mask & (uint)ComponentBits.BulletHealth) != 0) ne.Local.GetComponent<BulletHealthComponent>()?.Decode(br);
-                        if ((mask & (uint)ComponentBits.Draw) != 0) ne.Local.GetComponent<DrawComponent>()?.Decode(br);
+                        DecodeMaskedComponents(ne.Local, mask, br);
                     }
                     else
                     {
@@ -121,21 +117,21 @@ namespace NetworkComponentSystem
 
                         // Always add a Transform component!
                         Transform transform = ne.Local.AddComponent(new Transform());
-                        if ((mask & (uint)ComponentBits.Transform) != 0) transform.Decode(br);
+                        if ((mask & (uint)(1 << (int)ComponentType.Transform)) != 0) transform.Decode(br);
 
-                        if ((mask & (uint)ComponentBits.Health) != 0)
+                        if ((mask & (uint)(1 << (int)ComponentType.Health)) != 0)
                         {
                             HealthComponent health = ne.Local.AddComponent(new HealthComponent(100));
                             health.Decode(br);
                         }
 
-                        if ((mask & (uint)ComponentBits.BulletHealth) != 0)
+                        if ((mask & (uint)(1 << (int)ComponentType.BulletHealth)) != 0)
                         {
                             BulletHealthComponent bullet = ne.Local.AddComponent(new BulletHealthComponent(100));
                             bullet.Decode(br);
                         }
 
-                        if ((mask & (uint)ComponentBits.Draw) != 0)
+                        if ((mask & (uint)(1 << (int)ComponentType.Draw)) != 0)
                         {
                             DrawComponent draw = ne.Local.AddComponent(new DrawComponent(0, Color.White));
                             draw.Decode(br);
@@ -147,30 +143,40 @@ namespace NetworkComponentSystem
 
                 case MessageType.Destroy:
                     networkEntities.TryGetValue(id, out ne);
+
                     if (ne != null)
                     {
                         ne.Local.Destroy(); // Local entites will be automatically destroyed on next update
                     }
+
                     networkEntities.Remove(id);
                     break;
 
                 case MessageType.Update:
-                    if (!networkEntities.TryGetValue(id, out ne)) return;   // stale packet, ignore
 
-                    // decode each component that is present in the mask
-                    if ((mask & (uint)ComponentBits.Transform) != 0) ne.Local.GetComponent<Transform>()?.Decode(br);
-                    if ((mask & (uint)ComponentBits.Health) != 0 ) ne.Local.GetComponent<HealthComponent>()?.Decode(br);
-                    if ((mask & (uint)ComponentBits.BulletHealth) != 0) ne.Local.GetComponent<BulletHealthComponent>()?.Decode(br);
-                    if ((mask & (uint)ComponentBits.Draw) != 0 ) ne.Local.GetComponent<DrawComponent>()?.Decode(br);
-
-                    // reset dirty flags after an update
-                    ne.Local.GetComponent<Transform>()?.ResetDirty();
-                    ne.Local.GetComponent<HealthComponent>()?.ResetDirty();
-                    ne.Local.GetComponent<MovementComponent>()?.ResetDirty();
-                    ne.Local.GetComponent<BulletHealthComponent>()?.ResetDirty();
-                    ne.Local.GetComponent<DrawComponent>()?.ResetDirty();
-
+                    if (networkEntities.TryGetValue(id, out ne))
+                    {
+                        DecodeMaskedComponents(ne.Local, mask, br);
+                        ne.Local.ResetDirtyFlags(mask);
+                    }
                     break;
+            }
+        }
+
+        private static void DecodeMaskedComponents(Entity entity, uint mask, BinaryReader br)
+        {
+            for (byte i = 0; i <= 5; i++)
+            {
+                var type = (ComponentType)i;
+                if ((mask & (uint)(1 << i)) == 0) continue;
+
+                switch (type)
+                {
+                    case ComponentType.Transform: entity.GetComponent<Transform>()?.Decode(br); break;
+                    case ComponentType.Health: entity.GetComponent<HealthComponent>()?.Decode(br); break;
+                    case ComponentType.BulletHealth: entity.GetComponent<BulletHealthComponent>()?.Decode(br); break;
+                    case ComponentType.Draw: entity.GetComponent<DrawComponent>()?.Decode(br); break;
+                }
             }
         }
     }
